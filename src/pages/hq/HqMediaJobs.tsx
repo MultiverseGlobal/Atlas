@@ -39,7 +39,7 @@ export default function HqMediaJobs() {
 
     try {
       // Hardcoded local URL for Clario backend right now
-      const CLARIO_URL = import.meta.env.VITE_CLARIO_URL || "http://localhost:8000";
+      const CLARIO_URL = import.meta.env.VITE_CLARIO_URL || "https://clario-l5d0.onrender.com";
       
       const res = await fetch(`${CLARIO_URL}/api/v1/harvest/ingest-file`, {
         method: "POST",

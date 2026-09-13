@@ -1,7 +1,22 @@
 import { motion } from "framer-motion";
 import { AtlasIcon } from "@/components/atlas/EcosystemIcons";
+import { useEffect, useState } from "react";
 
 export function PageLoader() {
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
+
+  useEffect(() => {
+    const hasLoaded = sessionStorage.getItem('has_loaded_main_app');
+    if (hasLoaded) {
+      setIsFirstLoad(false);
+    } else {
+      sessionStorage.setItem('has_loaded_main_app', 'true');
+    }
+  }, []);
+
+  const delayMultiplier = isFirstLoad ? 1 : 0;
+  const durationMultiplier = isFirstLoad ? 1 : 0.2;
+
   return (
     <div className="flex min-h-screen w-full flex-col items-center justify-center p-8 overflow-hidden relative">
       {/* Absolute Ambient Background */}
@@ -11,15 +26,15 @@ export function PageLoader() {
             scale: [1, 1.2, 1],
             opacity: [0.1, 0.3, 0.1],
           }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          transition={{ duration: 4 * durationMultiplier, repeat: Infinity, ease: "easeInOut" }}
           className="w-96 h-96 bg-foreground/5 rounded-full blur-3xl"
         />
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
+        initial={{ opacity: 0, y: isFirstLoad ? 20 : 0, filter: isFirstLoad ? "blur(10px)" : "blur(0px)" }}
         animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 1 * durationMultiplier, ease: [0.16, 1, 0.3, 1] }}
         className="relative flex flex-col items-center justify-center z-10"
       >
         <div className="relative flex items-center justify-center w-24 h-24">
@@ -35,7 +50,7 @@ export function PageLoader() {
               }}
               animate={{ rotate: 360 }}
               transition={{
-                duration: 3 + i * 2,
+                duration: (3 + i * 2) * (isFirstLoad ? 1 : 0.5),
                 repeat: Infinity,
                 ease: "linear",
                 direction: i % 2 === 0 ? "normal" : "reverse",
@@ -46,20 +61,20 @@ export function PageLoader() {
           {/* Pulsing Core */}
           <motion.div
             animate={{ scale: [0.95, 1.05, 0.95], opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            transition={{ duration: 2 * durationMultiplier, repeat: Infinity, ease: "easeInOut" }}
             className="absolute inset-2 rounded-full bg-foreground/5 blur-md"
           />
 
           {/* Solid Container with Icon */}
           <motion.div 
-            initial={{ scale: 0 }}
+            initial={{ scale: isFirstLoad ? 0 : 1 }}
             animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 20 }}
+            transition={{ delay: 0.2 * delayMultiplier, type: "spring", stiffness: 200, damping: 20 }}
             className="relative z-10 flex h-12 w-12 items-center justify-center rounded-xl bg-background border border-foreground/20 shadow-2xl overflow-hidden"
           >
             <motion.div
               animate={{ rotate: [0, 360] }}
-              transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+              transition={{ duration: 10 * (isFirstLoad ? 1 : 0.5), repeat: Infinity, ease: "linear" }}
               className="absolute inset-[-100%] bg-[conic-gradient(from_0deg,transparent_0_340deg,hsl(var(--foreground)/0.2)_360deg)]"
             />
             <div className="absolute inset-[1px] rounded-xl bg-background flex items-center justify-center">
@@ -70,9 +85,9 @@ export function PageLoader() {
 
         {/* Loading Text Sequence */}
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={{ opacity: isFirstLoad ? 0 : 1 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 1 }}
+          transition={{ delay: 0.5 * delayMultiplier, duration: 1 * durationMultiplier }}
           className="mt-8 flex flex-col items-center gap-3"
         >
           {/* Progress Bar */}
@@ -82,7 +97,7 @@ export function PageLoader() {
                 x: ["-100%", "200%"],
               }}
               transition={{
-                duration: 1.5,
+                duration: 1.5 * durationMultiplier,
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
@@ -94,7 +109,7 @@ export function PageLoader() {
             <span>Initializing Workspace</span>
             <motion.span
               animate={{ opacity: [0, 1, 0] }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+              transition={{ duration: 1.5 * durationMultiplier, repeat: Infinity, ease: "linear" }}
               className="w-1.5 h-1.5 rounded-full bg-foreground/40"
             />
           </div>

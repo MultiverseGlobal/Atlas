@@ -3,7 +3,7 @@ import { AtlasIcon } from "@/components/atlas/EcosystemIcons";
 
 export function PageLoader() {
   return (
-    <div className="flex min-h-[60vh] w-full flex-col items-center justify-center p-8 overflow-hidden relative">
+    <div className="flex min-h-screen w-full flex-col items-center justify-center p-8 overflow-hidden relative">
       {/* Absolute Ambient Background */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <motion.div

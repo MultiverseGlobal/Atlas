@@ -179,6 +179,7 @@ export default function HqDiscover() {
             }
           }).then(() => toast.success(`Pushed ${lead.company} to Notion!`))
             .catch((e) => console.warn("Notion auto-export error:", e));
+          }
         }
       }
     } catch (err: any) {

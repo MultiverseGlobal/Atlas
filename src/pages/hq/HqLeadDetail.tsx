@@ -332,7 +332,7 @@ export default function HqLeadDetail() {
   const stageIdx = STAGE_STEPS.indexOf(lead.stage);
 
   return (
-    <div className="text-foreground flex flex-col pt-[72px]">
+    <div className="text-foreground flex flex-col pt-4">
       {/* Top bar */}
       <div className="sticky top-[72px] z-30 border-b border-border/60 bg-background/90 backdrop-blur-sm">
         <div className="flex items-center gap-3 px-5 py-3">

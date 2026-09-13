@@ -249,7 +249,7 @@ export default function CommandFeed() {
   const requiresIntervention = campaignState.status === "awaiting_approval";
 
   return (
-    <div className="relative min-h-[calc(100vh+6rem)] w-full overflow-hidden -mt-24 pt-24">
+    <div className="relative min-h-screen w-full overflow-hidden -mt-24">
       {/* ── Atmospheric Background Canvas ──────────────────────────────── */}
       <SpatialCanvas
         isProcessing={isProcessing}

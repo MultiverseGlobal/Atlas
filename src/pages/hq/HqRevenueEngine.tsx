@@ -413,7 +413,7 @@ export default function HqRevenueEngine() {
             <p className="text-[11px] font-mono text-muted-foreground mt-0.5">{opportunities.length} active opportunities</p>
           </div>
           <Button
-            onClick={() => window.location.href = "/hq/discover"}
+            onClick={() => window.location.href = "/command"}
             size="sm"
             className="h-8 px-3 rounded-lg bg-foreground text-background text-xs font-medium flex items-center gap-1.5"
           >

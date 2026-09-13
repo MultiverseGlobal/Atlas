@@ -15,32 +15,23 @@ import HqShell from "./components/atlas/HqShell";
 import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 
-const lazyWithDelay = (factory: () => Promise<any>, minDelayMs = 2500) => {
-  return React.lazy(() =>
-    Promise.all([
-      factory(),
-      new Promise((resolve) => setTimeout(resolve, minDelayMs)),
-    ]).then(([moduleExports]) => moduleExports)
-  );
-};
+const Onboarding = React.lazy(() => import("./pages/Onboarding"));
+const ObjectivesStudio = React.lazy(() => import("./pages/hq/ObjectivesStudio"));
+const HqRevenueEngine = React.lazy(() => import("./pages/hq/HqRevenueEngine"));
+const HqLeadDetail = React.lazy(() => import("./pages/hq/HqLeadDetail"));
+const HqProposal = React.lazy(() => import("./pages/hq/HqProposal"));
+const DailyBriefing = React.lazy(() => import("./pages/hq/DailyBriefing"));
+const CommandFeed = React.lazy(() => import("./pages/CommandFeed"));
+const HqSettings = React.lazy(() => import("./pages/hq/HqSettings"));
 
-const Onboarding = lazyWithDelay(() => import("./pages/Onboarding"));
-const ObjectivesStudio = lazyWithDelay(() => import("./pages/hq/ObjectivesStudio"));
-const HqRevenueEngine = lazyWithDelay(() => import("./pages/hq/HqRevenueEngine"));
-const HqLeadDetail = lazyWithDelay(() => import("./pages/hq/HqLeadDetail"));
-const HqProposal = lazyWithDelay(() => import("./pages/hq/HqProposal"));
-const DailyBriefing = lazyWithDelay(() => import("./pages/hq/DailyBriefing"));
-const CommandFeed = lazyWithDelay(() => import("./pages/CommandFeed"));
-const HqSettings = lazyWithDelay(() => import("./pages/hq/HqSettings"));
-
-const HqDashboard = lazyWithDelay(() => import("./pages/hq/HqDashboard"));
-const HqDiscover = lazyWithDelay(() => import("./pages/hq/HqDiscover"));
-const HqPartnerships = lazyWithDelay(() => import("./pages/hq/HqPartnerships"));
-const HqTeam = lazyWithDelay(() => import("./pages/hq/HqTeam"));
-const HqReport = lazyWithDelay(() => import("./pages/hq/HqReport"));
-const HqMediaJobs = lazyWithDelay(() => import("./pages/hq/HqMediaJobs"));
-const Privacy = lazyWithDelay(() => import("./pages/Privacy"));
-const PublicProfile = lazyWithDelay(() => import("./pages/PublicProfile"));
+const HqDashboard = React.lazy(() => import("./pages/hq/HqDashboard"));
+const HqDiscover = React.lazy(() => import("./pages/hq/HqDiscover"));
+const HqPartnerships = React.lazy(() => import("./pages/hq/HqPartnerships"));
+const HqTeam = React.lazy(() => import("./pages/hq/HqTeam"));
+const HqReport = React.lazy(() => import("./pages/hq/HqReport"));
+const HqMediaJobs = React.lazy(() => import("./pages/hq/HqMediaJobs"));
+const Privacy = React.lazy(() => import("./pages/Privacy"));
+const PublicProfile = React.lazy(() => import("./pages/PublicProfile"));
 
 const SovereignSyncWrapper = ({ children }: { children: React.ReactNode }) => {
   useSovereignSync();

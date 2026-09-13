@@ -20,6 +20,7 @@ const ROUTES: Record<string, { label: string; icon: React.ElementType }> = {
   "/":            { label: "Command",         icon: Command },
   "/briefing":    { label: "Briefing",        icon: Coffee },
   "/hq/radar":   { label: "Radar",           icon: Gauge },
+  "/hq/report":   { label: "Report",          icon: BarChart },
   "/hq/settings": { label: "Settings",        icon: Settings },
 };
 

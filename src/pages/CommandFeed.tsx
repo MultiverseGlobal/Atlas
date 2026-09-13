@@ -14,7 +14,6 @@ import { useTheme } from "@/hooks/useTheme";
 import { soundManager } from "@/lib/audioFeedback";
 import { toast } from "sonner";
 import { Send, CheckCircle2, SkipForward, RefreshCw, Bot, Terminal } from "lucide-react";
-import HqAutopilot from "@/pages/hq/HqAutopilot";
 
 // ── Initial campaign state ──────────────────────────────────────────────────
 const INITIAL_STATE: CampaignState = {
@@ -38,7 +37,6 @@ export default function CommandFeed() {
   // ── Campaign state ──────────────────────────────────────────────────────
   const [campaignState, setCampaignState] = useState<CampaignState>(INITIAL_STATE);
   const [isAutoPilot, setIsAutoPilot] = useState(false);
-  const [viewMode, setViewMode] = useState<"command" | "autopilot">("command");
 
   // ── Intervention drawer state ───────────────────────────────────────────
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -259,32 +257,6 @@ export default function CommandFeed() {
         isDark={isDark}
       />
 
-      {/* ── Mode Toggle ──────────────────────────────────────────────── */}
-      <div className="absolute top-6 right-6 z-50 flex items-center bg-card/80 backdrop-blur-md border border-border/50 rounded-full p-1 shadow-sm">
-        <button
-          onClick={() => setViewMode("command")}
-          className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
-            viewMode === "command"
-              ? "bg-foreground text-background shadow-md"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted"
-          }`}
-        >
-          <Terminal className="w-3.5 h-3.5" />
-          Command
-        </button>
-        <button
-          onClick={() => setViewMode("autopilot")}
-          className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
-            viewMode === "autopilot"
-              ? "bg-foreground text-background shadow-md"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted"
-          }`}
-        >
-          <Bot className="w-3.5 h-3.5" />
-          Autopilot
-        </button>
-      </div>
-
       {/* ── Campaign Workspace ─────────────────────────────────────────── */}
       <motion.div 
         animate={{
@@ -294,20 +266,14 @@ export default function CommandFeed() {
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="relative z-10 flex min-h-screen w-full flex-col items-center justify-center px-4 py-16 sm:px-6 lg:px-8"
       >
-        {viewMode === "command" ? (
-          <CommandEngine
-            campaignState={campaignState}
-            onStateChange={setCampaignState}
-            onRequireIntervention={handleRequireIntervention}
-            isDark={isDark}
-            isAutoPilot={isAutoPilot}
-            onToggleAutoPilot={handleToggleAutoPilot}
-          />
-        ) : (
-          <div className="w-full h-full mt-16 overflow-y-auto">
-            <HqAutopilot />
-          </div>
-        )}
+        <CommandEngine
+          campaignState={campaignState}
+          onStateChange={setCampaignState}
+          onRequireIntervention={handleRequireIntervention}
+          isDark={isDark}
+          isAutoPilot={isAutoPilot}
+          onToggleAutoPilot={handleToggleAutoPilot}
+        />
       </motion.div>
 
       {/* ── Intervention Drawer (slides in from right) ─────────────────── */}

@@ -213,10 +213,10 @@ Deno.serve(async (req: Request) => {
     const teamSize       = team_size    || rd.team_size    || "growing team";
 
     const openRouterApiKey = Deno.env.get("OPENROUTER_API_KEY");
-    const groqApiKey = Deno.env.get("GROQ_API_KEY");
+    const groqApiKey = dbSettings?.groq_api_key || Deno.env.get("GROQ_API_KEY");
     const kimiApiKey = Deno.env.get("KIMI_API_KEY") || Deno.env.get("MOONSHOT_API_KEY");
     const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
-    const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
+    const openaiApiKey = dbSettings?.openai_api_key || Deno.env.get("OPENAI_API_KEY");
     
     const providers = [
       { name: "openrouter", key: openRouterApiKey },

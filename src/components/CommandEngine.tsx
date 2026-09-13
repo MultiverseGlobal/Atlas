@@ -143,11 +143,13 @@ export function CommandEngine({
         currentDraft: draft,
       }));
 
-      soundManager.playChime();
-      onRequireIntervention(foundLeads[0], draft);
-      toast("Outreach ready for review. System paused for authorization.", {
-        icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
-      });
+      if (!isAutoPilot) {
+        soundManager.playChime();
+        onRequireIntervention(foundLeads[0], draft);
+        toast("Outreach ready for review. System paused for authorization.", {
+          icon: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
+        });
+      }
 
     } catch (err: any) {
       toast.error(err.message || "Failed to run campaign.");
@@ -158,6 +160,16 @@ export function CommandEngine({
       }));
     }
   };
+
+  useEffect(() => {
+    if (isAutoPilot && campaignState.status === "reviewing_icp") {
+      toast.info("Auto-Pilot: Target parameters acquired. Commencing scan...");
+      const timer = setTimeout(() => {
+        handleApproveIcp();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isAutoPilot, campaignState.status, tempIcp]);
 
   const handleLaunchCampaign = (e: React.FormEvent) => {
     e.preventDefault();

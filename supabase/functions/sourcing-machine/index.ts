@@ -370,6 +370,39 @@ async function callGroq(systemPrompt: string, userPrompt: string, apiKey: string
   }
 }
 
+// Call Google Gemini
+async function callGemini(systemPrompt: string, userPrompt: string, apiKey: string, expectArray = false): Promise<any> {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    signal: AbortSignal.timeout(50000), // 50 seconds timeout
+    body: JSON.stringify({
+      system_instruction: {
+        parts: [{ text: systemPrompt }]
+      },
+      contents: [{
+        parts: [{ text: userPrompt }]
+      }],
+      generationConfig: {
+        temperature: 0.3,
+        response_mime_type: "application/json"
+      }
+    }),
+  });
+  if (!res.ok) {
+    const errorText = await res.text();
+    if (res.status === 400 && errorText.includes("API key not valid")) {
+      throw new Error("AUTH_ERROR: Gemini API key is invalid.");
+    }
+    throw new Error(`Gemini API error: ${res.status} ${errorText}`);
+  }
+  const data = await res.json();
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+  return extractJson(rawText, expectArray);
+}
+
 // Parse structured markdown notes into Notion block formats
 function parseNotesToNotionBlocks(notesText: string) {
   if (!notesText) return [];
@@ -2677,9 +2710,9 @@ Prism Outreach & PR | https://prismoutreach.com | Digital PR, link building, med
         rawContent = CLUTCH_AGENCIES_DATA;
       }
 
-                  
-      if (!openaiKey && !groqApiKey && !kimiApiKey && !nimApiKey) {
-        return new Response(JSON.stringify({ error: "No AI API keys configured. Please add OpenAI, Groq, Kimi, or NIM key." }), {
+      const geminiApiKey = dbSettings?.gemini_api_key || Deno.env.get("GEMINI_API_KEY");
+      if (!openaiKey && !groqApiKey && !kimiApiKey && !nimApiKey && !geminiApiKey) {
+        return new Response(JSON.stringify({ error: "No AI API keys configured. Please add OpenAI, Groq, Kimi, NIM, or Gemini key." }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -2808,13 +2841,15 @@ Respond ONLY as a JSON object with a single key "leads":
         }
       }
 
-      if (!leads) {
-        return new Response(JSON.stringify({ error: lastError }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
+      // 5. Try Gemini
+      if (!leads && geminiApiKey) {
+        try {
+          const res = await callGemini(systemPrompt, userPrompt, geminiApiKey, false);
+          leads = Array.isArray(res) ? res : (res.leads || res.companies || []);
+        } catch (e: any) { lastError = `Gemini Error: ${e.message}`; }
       }
 
-      // ONLY use fallback if leads is literally null (which shouldn't happen now since we return on error)
+      // ONLY use fallback if leads is literally null (which happens when AI providers fail)
       if (!leads) {
         leads = DEFAULT_FALLBACK_AGENCIES;
       }

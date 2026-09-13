@@ -272,7 +272,7 @@ export function CommandEngine({
                 }`}
                 title="Toggle Autopilot Mode"
               >
-                {isAutoPilot ? <Zap className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
+                {isAutoPilot ? <Sparkles className="h-4 w-4" /> : <ShieldCheck className="h-4 w-4" />}
                 {isAutoPilot ? "Autopilot" : "Supervised"}
               </button>
 

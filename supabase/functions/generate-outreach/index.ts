@@ -226,9 +226,7 @@ Deno.serve(async (req: Request) => {
       { name: "openai", key: openaiApiKey },
     ].filter(p => !!p.key);
 
-    if (providers.length === 0) {
-      throw new Error("No LLM API keys configured.");
-    }
+
 
     const systemPrompt = `You are an expert B2B sales copywriter for an AI automation agency.
 Your job is to write outreach messages that sound like a curious, intelligent human — NOT a sales robot.
@@ -274,6 +272,11 @@ Return ONLY this JSON (no markdown, no explanation):
     let finalRes: Response | null = null;
     let result: any = null;
     let usedProvider = "";
+
+    if (providers.length === 0) {
+      console.warn("No LLM API keys configured. Using fallback.");
+      result = buildFallback(company, founderName, bottleneckArea, hypothesis);
+    }
 
     for (const provider of providers) {
       try {
@@ -339,7 +342,8 @@ Return ONLY this JSON (no markdown, no explanation):
     }
 
     if (!finalRes && !result) {
-      throw new Error("All AI models failed to generate valid outreach copy.");
+      console.warn("All AI models failed, using hardcoded fallback.");
+      result = buildFallback(company, founderName, bottleneckArea, hypothesis);
     }
 
     if (isStream) {

@@ -91,7 +91,7 @@ export function PageLoader() {
           </div>
 
           <div className="flex items-center gap-2 text-muted-foreground font-mono text-[10px] tracking-[0.2em] uppercase">
-            <span>Authenticating</span>
+            <span>Initializing Workspace</span>
             <motion.span
               animate={{ opacity: [0, 1, 0] }}
               transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}

@@ -362,7 +362,7 @@ export default function HqRevenueEngine() {
 
   if (loading) {
     return (
-      <div className="flex h-screen pt-[72px] bg-background items-center justify-center">
+      <div className="flex pt-[72px] items-center justify-center">
         <div className="flex flex-col items-center gap-6">
           <motion.div
             animate={{ scale: [1, 1.05, 1], opacity: [0.3, 1, 0.3] }}
@@ -380,7 +380,7 @@ export default function HqRevenueEngine() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-screen pt-[72px] bg-background grain text-foreground font-sans overflow-hidden">
+    <div className="flex flex-col md:flex-row pt-[72px] text-foreground font-sans overflow-hidden">
 
       {/* ── Top/Left Sidebar: Pipeline ──────────────────────────────────────── */}
       <div className="w-full md:w-[340px] h-[35vh] md:h-auto border-b md:border-b-0 md:border-r border-border/60 bg-card/20 backdrop-blur-xl flex flex-col shrink-0">

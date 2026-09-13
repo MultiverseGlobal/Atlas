@@ -189,9 +189,25 @@ export function CommandEngine({
           scale: isRunning ? 0.96 : 1,
         }}
         transition={{ type: "spring", stiffness: 260, damping: 26 }}
-        className="z-20 w-full"
+        className="z-20 w-full flex flex-col items-center"
       >
-        <form onSubmit={handleLaunchCampaign} className="relative group w-full">
+        {!isRunning && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 text-center"
+          >
+            <h1 className={`font-display text-3xl font-bold tracking-tight mb-3 ${isDark ? "text-white" : "text-neutral-900"}`}>
+              Launch Revenue Engine
+            </h1>
+            <p className={`text-sm font-sans max-w-xl mx-auto ${isDark ? "text-white/60" : "text-neutral-600"}`}>
+              Define your ideal customer profile (ICP) below. Atlas will autonomously hunt the web, 
+              identify high-intent decision makers, and draft personalized outreach.
+            </p>
+          </motion.div>
+        )}
+
+        <form onSubmit={handleLaunchCampaign} className="relative group w-full max-w-3xl">
           {/* Specular Ambient Glare Ring */}
           <div
             className={`absolute -inset-[2px] rounded-3xl opacity-30 blur-lg transition-opacity duration-700 group-hover:opacity-80 group-focus-within:opacity-80 ${

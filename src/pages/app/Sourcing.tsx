@@ -303,12 +303,12 @@ export default function Sourcing() {
     setLoadingLeads(true);
     try {
       const { data, error } = await supabase
-        .from("kuro_pipeline_view")
-        .select("*")
+        .from("atlas_opportunities")
+        .select("id, company:organization_name, website:primary_domain, stage:pipeline_stage, icp_score:fit_score, notes:deal_notes, created_at, user_id, is_hq_dump:false")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setLeads(data || []);
+      setLeads((data || []) as any[]);
     } catch (err: any) {
       toast.error("Failed to load prospects: " + err.message);
     } finally {
@@ -741,12 +741,9 @@ export default function Sourcing() {
           is_hq_dump: true 
         } : l));
         await supabase
-          .from("kuro_pipeline_view")
+          .from("atlas_opportunities")
           .update({ 
-            exported_to_notion: true, 
-            notion_page_id: body.page_id, 
-            notion_sync_status: "synced", 
-            is_hq_dump: true 
+            deal_notes: (lead.notes || "") + "\n(Exported to Notion)"
           })
           .eq("id", lead.id);
       }
@@ -943,28 +940,17 @@ export default function Sourcing() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Unauthorized");
 
-      const calculatedPriority = parsedIcp >= 13 ? "High" : parsedIcp >= 11 ? "Medium" : "Low";
-
       const { data, error } = await supabase
-        .from("kuro_pipeline_view")
+        .from("atlas_opportunities")
         .insert({
           user_id: user.id,
-          company: manualCompany.trim(),
-          prospect: manualFounder.trim(),
-          website: manualUrl.trim(),
-          founder_thesis: manualThesis.trim(),
-          goal: manualGoal.trim() || "Scale operations",
-          icp_score: parsedIcp,
-          next_action: manualNextAction.trim() || "Initial outreach",
-          notes: `## Manual Entry\n\nNotes: ${manualNotes.trim()}`,
-          priority: calculatedPriority,
-          source: manualUrl.trim(),
-          stage: "Sourced",
-          linkedin_url: manualLinkedin.trim() || null,
-          twitter_url: manualTwitter.trim() || null,
-          is_hq_dump: false
+          organization_name: manualCompany.trim(),
+          primary_domain: manualUrl.trim(),
+          deal_notes: manualNotes.trim() || null,
+          pipeline_stage: "discovered",
+          fit_score: parsedIcp,
         })
-        .select()
+        .select("id, company:organization_name, website:primary_domain, stage:pipeline_stage, icp_score:fit_score, notes:deal_notes, created_at, user_id, is_hq_dump:false")
         .single();
 
       if (error) throw error;
@@ -1002,35 +988,18 @@ export default function Sourcing() {
 
       const rows = toSave.map(l => ({
         user_id: user.id,
-        company: (l.company || "Unknown").trim(),
-        prospect: (l.prospect || "Unknown Prospect").trim(),
-        website: l.website?.trim() || l.source?.trim() || "https://unknown.com",
-        founder_thesis: l.founder_thesis?.trim() || "No dominant constraint specified",
-        goal: l.goal?.trim() || null,
-        icp_score: l.icp_score ?? 10,
-        score_founder_active: l.score_founder_active ?? 0,
-        score_buying_signal: l.score_buying_signal ?? 0,
-        score_icp_fit: l.score_icp_fit ?? 0,
-        score_reachable: l.score_reachable ?? 0,
-        score_atlas_relevance: l.score_atlas_relevance ?? 0,
-        stale_data_warning: l.stale_data_warning || false,
-        draft_message: l.draft_message || null,
-        contact_channel: l.contact_channel || null,
-        next_action: l.next_action?.trim() || null,
-        notes: l.notes?.trim() || null,
-        priority: l.priority || "Low",
-        source: l.source?.trim() || "https://unknown.com",
-        stage: l.stage || "Sourced",
-        exported_to_notion: false,
-        linkedin_url: l.linkedin_url?.trim() || null,
-        twitter_url: l.twitter_url?.trim() || null,
+        organization_name: (l.company || "Unknown").trim(),
+        primary_domain: l.website?.trim() || l.source?.trim() || "https://unknown.com",
+        deal_notes: l.notes?.trim() || null,
+        pipeline_stage: "discovered",
+        fit_score: l.icp_score ?? 50,
         is_hq_dump: true
       }));
 
       // Local duplicate filtering: skip inserting if company already exists in the local CRM list
       const existingCompanies = new Set(leads.map(l => l.company.toLowerCase().trim()));
       const uniqueRows = rows.filter(row => {
-        return !existingCompanies.has(row.company.toLowerCase().trim());
+        return !existingCompanies.has(row.organization_name.toLowerCase().trim());
       });
 
       const skippedCount = rows.length - uniqueRows.length;
@@ -1038,9 +1007,9 @@ export default function Sourcing() {
       let saved: any[] = [];
       if (uniqueRows.length > 0) {
         const { data, error } = await supabase
-            .from("kuro_pipeline_view")
+            .from("atlas_opportunities")
             .insert(uniqueRows)
-            .select();
+            .select("id, company:organization_name, website:primary_domain, stage:pipeline_stage, icp_score:fit_score, notes:deal_notes, created_at, user_id, is_hq_dump:true");
 
         if (error) throw error;
         saved = data || [];
@@ -1096,32 +1065,14 @@ export default function Sourcing() {
       if (previewLead.id) {
         // Edit mode
         const { data, error } = await supabase
-          .from("kuro_pipeline_view")
+          .from("atlas_opportunities")
           .update({
-            company: (previewLead.company || "Unknown").trim(),
-            prospect: (previewLead.prospect || "Unknown Prospect").trim(),
-            website: previewLead.website?.trim() || "https://unknown.com",
-            founder_thesis: previewLead.founder_thesis?.trim() || "No dominant constraint specified",
-            goal: previewLead.goal?.trim() || null,
-            icp_score: previewLead.icp_score ?? 10,
-            score_founder_active: previewLead.score_founder_active ?? 0,
-            score_buying_signal: previewLead.score_buying_signal ?? 0,
-            score_icp_fit: previewLead.score_icp_fit ?? 0,
-            score_reachable: previewLead.score_reachable ?? 0,
-            score_atlas_relevance: previewLead.score_atlas_relevance ?? 0,
-            stale_data_warning: previewLead.stale_data_warning || false,
-            draft_message: previewLead.draft_message || null,
-            contact_channel: previewLead.contact_channel || null,
-            next_action: previewLead.next_action?.trim() || null,
-            notes: previewLead.notes?.trim() || null,
-            priority: previewLead.priority || "Low",
-            source: previewLead.source?.trim() || "https://unknown.com",
-            stage: previewLead.stage || "Sourced",
-            linkedin_url: previewLead.linkedin_url?.trim() || null,
-            twitter_url: previewLead.twitter_url?.trim() || null
+            organization_name: (previewLead.company || "Unknown").trim(),
+            primary_domain: (previewLead.website || "").trim(),
+            deal_notes: (previewLead.notes || "").trim() || null
           })
           .eq("id", previewLead.id)
-          .select()
+          .select("id, company:organization_name, website:primary_domain, stage:pipeline_stage, icp_score:fit_score, notes:deal_notes, created_at, user_id, is_hq_dump:false")
           .single();
 
         if (error) throw error;
@@ -1133,26 +1084,9 @@ export default function Sourcing() {
       } else {
         // Insert mode (staged preview fallback)
         const { data, error } = await supabase
-          .from("kuro_pipeline_view")
+          .from("atlas_opportunities")
           .insert({
             user_id: user.id,
-            company: (previewLead.company || "Unknown").trim(),
-            prospect: (previewLead.prospect || "Unknown Prospect").trim(),
-            website: previewLead.website?.trim() || previewLead.source?.trim() || "https://unknown.com",
-            founder_thesis: previewLead.founder_thesis?.trim() || "No dominant constraint specified",
-            goal: previewLead.goal?.trim() || null,
-            icp_score: previewLead.icp_score ?? 10,
-            score_founder_active: previewLead.score_founder_active ?? 0,
-            score_buying_signal: previewLead.score_buying_signal ?? 0,
-            score_icp_fit: previewLead.score_icp_fit ?? 0,
-            score_reachable: previewLead.score_reachable ?? 0,
-            score_atlas_relevance: previewLead.score_atlas_relevance ?? 0,
-            stale_data_warning: previewLead.stale_data_warning || false,
-            draft_message: previewLead.draft_message || null,
-            contact_channel: previewLead.contact_channel || null,
-            next_action: previewLead.next_action?.trim() || null,
-            notes: previewLead.notes?.trim() || null,
-            priority: previewLead.priority || "Low",
             source: previewLead.source?.trim() || "https://unknown.com",
             stage: previewLead.stage || "Sourced",
             exported_to_notion: false,
@@ -1199,8 +1133,8 @@ export default function Sourcing() {
     
     try {
       const { error } = await supabase
-        .from("kuro_pipeline_view")
-        .update({ is_contacted: nextVal })
+        .from("atlas_opportunities")
+        .update({ pipeline_stage: nextVal ? "contacted" : "outreach_ready" })
         .eq("id", leadId);
 
       if (error) throw error;
@@ -1217,8 +1151,8 @@ export default function Sourcing() {
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, reply_status: nextStatus } : l));
     try {
       const { error } = await supabase
-        .from("kuro_pipeline_view")
-        .update({ reply_status: nextStatus })
+        .from("atlas_opportunities")
+        .update({ pipeline_stage: nextStatus === "replied" ? "engaged" : "contacted" })
         .eq("id", leadId);
 
       if (error) throw error;
@@ -1234,8 +1168,8 @@ export default function Sourcing() {
     if (!activeNotesLead) return;
     try {
       const { error } = await supabase
-        .from("kuro_pipeline_view")
-        .update({ notes: notesDraft.trim() || null })
+        .from("atlas_opportunities")
+        .update({ deal_notes: notesDraft.trim() || null })
         .eq("id", activeNotesLead.id);
 
       if (error) throw error;
@@ -1293,8 +1227,8 @@ export default function Sourcing() {
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, stage: newStage } : l));
     try {
       const { error } = await supabase
-        .from("kuro_pipeline_view")
-        .update({ stage: newStage })
+        .from("atlas_opportunities")
+        .update({ pipeline_stage: newStage === "won" ? "closed_won" : (newStage === "lost" ? "closed_lost" : newStage) })
         .eq("id", leadId);
       if (error) throw error;
     } catch (err: any) {
@@ -1331,7 +1265,7 @@ export default function Sourcing() {
 
     try {
       const { error } = await supabase
-        .from("kuro_pipeline_view")
+        .from("atlas_opportunities")
         .delete()
         .eq("id", leadId);
 
@@ -1373,8 +1307,8 @@ export default function Sourcing() {
     } catch (err: any) {
       toast.error(`Graduation failed: ${err.message}. Graduating locally in database...`, { id: toastId });
       const { error } = await supabase
-        .from("kuro_pipeline_view")
-        .update({ is_hq_dump: false, stage: "Sourced" })
+        .from("atlas_opportunities")
+        .update({ pipeline_stage: "discovered" })
         .eq("id", lead.id);
       if (!error) {
         setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, is_hq_dump: false, stage: "Sourced" } : l));
@@ -1464,9 +1398,16 @@ ${isDisqualified ? `[DISQUALIFIED: ${disqualificationReason}]\n\n` : ""}${rawLea
         notion_sync_status: "not_synced" // mark as needing re-sync after update
       };
 
+      // Format updates for atlas_opportunities
+      const dbUpdates: any = {};
+      if (updates.company !== undefined) dbUpdates.organization_name = updates.company;
+      if (updates.website !== undefined) dbUpdates.primary_domain = updates.website;
+      if (updates.notes !== undefined) dbUpdates.deal_notes = updates.notes;
+      if (updates.stage !== undefined) dbUpdates.pipeline_stage = updates.stage;
+
       const { error: updateError } = await supabase
-        .from("kuro_pipeline_view")
-        .update(updates)
+        .from("atlas_opportunities")
+        .update(dbUpdates)
         .eq("id", lead.id);
 
       if (updateError) throw updateError;
@@ -1525,7 +1466,7 @@ ${isDisqualified ? `[DISQUALIFIED: ${disqualificationReason}]\n\n` : ""}${rawLea
     toast.loading(`Deleting ${selectedCount} leads...`);
     try {
       const { error } = await supabase
-        .from("kuro_pipeline_view")
+        .from("atlas_opportunities")
         .delete()
         .in("id", selectedLeadIds);
 
@@ -1545,8 +1486,8 @@ ${isDisqualified ? `[DISQUALIFIED: ${disqualificationReason}]\n\n` : ""}${rawLea
     toast.loading("Updating status...");
     try {
       const { error } = await supabase
-        .from("kuro_pipeline_view")
-        .update({ is_contacted: contacted })
+        .from("atlas_opportunities")
+        .update({ pipeline_stage: contacted ? "contacted" : "outreach_ready" })
         .in("id", selectedLeadIds);
 
       if (error) throw error;

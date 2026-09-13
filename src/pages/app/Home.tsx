@@ -184,8 +184,8 @@ export default function Home() {
     try {
       let leadsData: any[] = [];
       const { data: kuroLeads, error: kuroErr } = await supabase
-        .from("kuro_pipeline_view" as any)
-        .select("stage, is_contacted, reply_status, deal_value, icp_score")
+        .from("atlas_opportunities")
+        .select("stage:pipeline_stage, deal_value:deal_value_usd, icp_score:fit_score")
         .eq("user_id", user.id);
 
       if (!kuroErr && kuroLeads) {
@@ -199,24 +199,23 @@ export default function Home() {
       }
 
       const wonRevenue = leadsData
-        .filter((l) => ["won", "paid"].includes(l.stage))
+        .filter((l) => ["won", "paid", "closed_won"].includes(l.stage))
         .reduce((sum, l) => sum + (Number(l.deal_value) || 500), 0);
 
       const m: PipelineMetrics = {
         prospects: leadsData.length,
         responses: leadsData.filter((l) =>
-          l.reply_status && !["none", "no_reply"].includes(l.reply_status)
+          ["engaged", "negotiating", "won", "paid", "closed_won"].includes(l.stage)
         ).length,
         calls: leadsData.filter((l) =>
-          ["call_booked", "call_completed", "pain_confirmed", "proposal_sent",
-           "negotiating", "won", "paid", "onboarding", "delivering", "complete"].includes(l.stage)
+          ["qualified", "contacted", "engaged", "proposal_sent",
+           "negotiating", "won", "paid", "closed_won"].includes(l.stage)
         ).length,
         painConfirmed: leadsData.filter((l) =>
-          ["pain_confirmed", "proposal_sent", "negotiating", "won", "paid",
-           "onboarding", "delivering", "complete"].includes(l.stage)
+          ["engaged", "proposal_sent", "negotiating", "won", "paid", "closed_won"].includes(l.stage)
         ).length,
         proposals: leadsData.filter((l) =>
-          ["proposal_sent", "negotiating", "won", "paid", "onboarding", "delivering", "complete"].includes(l.stage)
+          ["proposal_sent", "negotiating", "won", "paid", "closed_won"].includes(l.stage)
         ).length,
         revenue: wonRevenue,
       };

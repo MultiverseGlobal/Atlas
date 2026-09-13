@@ -392,9 +392,9 @@ export default function HqRevenueEngine() {
           <Button
             onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "n", metaKey: true }))}
             size="sm"
-            className="h-8 w-8 p-0 rounded-lg bg-foreground text-background"
+            className="h-8 px-3 rounded-lg bg-foreground text-background text-xs font-medium flex items-center gap-1.5"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" /> Add Lead
           </Button>
         </div>
 
@@ -405,12 +405,11 @@ export default function HqRevenueEngine() {
               <span className="text-[13px] font-medium text-foreground mb-1">Pipeline Empty</span>
               <span className="text-[11px] text-muted-foreground mb-4">You have no active opportunities.</span>
               <Button 
-                onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "n", metaKey: true }))} 
+                onClick={() => window.location.href = "/hq/discover"}
                 size="sm" 
-                variant="outline" 
-                className="text-xs h-8"
+                className="text-xs h-8 bg-slate-900 hover:bg-slate-800 text-white"
               >
-                <Plus className="w-3 h-3 mr-1" /> Add Lead
+                Find Opportunities
               </Button>
             </div>
           )}

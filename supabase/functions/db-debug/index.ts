@@ -33,7 +33,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
     const { data: runs } = await supabaseClient.from("acquisition_runs").select("*").order("created_at", { ascending: false }).limit(2);
-    const { data: leads } = await supabaseClient.from("kuro_pipeline_view").select("id, company, is_contacted, outreach_draft").order("created_at", { ascending: false }).limit(10);
+    const { data: leads } = await supabaseClient.from("atlas_opportunities").select("id, organization_name: company, is_contacted, outreach_draft").order("created_at", { ascending: false }).limit(10);
     return new Response(JSON.stringify({ runs, leads }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });

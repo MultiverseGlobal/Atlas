@@ -31,7 +31,7 @@ import {
 import { loadStarterMap } from "@/lib/starterMap";
 import { useIntegrations } from "@/hooks/useIntegrations";
 import { friendlyError } from "@/lib/errors";
-import { CompassLoader } from "@/pages/app/Home";
+import { CompassLoader } from "@/components/ui/compass-loader";
 import { getGitHubToken, fetchUserRepos, GitHubRepo } from "@/lib/github";
 import {
   Select,

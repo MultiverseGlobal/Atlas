@@ -2710,7 +2710,7 @@ Prism Outreach & PR | https://prismoutreach.com | Digital PR, link building, med
         rawContent = CLUTCH_AGENCIES_DATA;
       }
 
-      const geminiApiKey = dbSettings?.gemini_api_key || Deno.env.get("GEMINI_API_KEY");
+      const geminiApiKey = dbSettings?.gemini_api_key || Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_AI_API_KEY");
       if (!openaiKey && !groqApiKey && !kimiApiKey && !nimApiKey && !geminiApiKey) {
         return new Response(JSON.stringify({ error: "No AI API keys configured. Please add OpenAI, Groq, Kimi, NIM, or Gemini key." }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -2751,8 +2751,8 @@ Respond ONLY as a JSON object with a single key "leads":
 {
   "leads": [
     {
-      "company": "Agency Name",
-      "website": "https://example.com",
+      "organization_name": "Agency Name",
+      "primary_domain": "https://example.com",
       "description": "Full service digital marketing agency...",
       "industry": "Marketing Agency",
       "team_size": "10-25 employees",

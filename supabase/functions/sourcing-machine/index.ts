@@ -695,6 +695,11 @@ Deno.serve(async (req: Request) => {
     }
 
     // Build proxy config if the user has one saved
+    const groqApiKey = dbSettings?.groq_api_key || Deno.env.get("GROQ_API_KEY");
+    const kimiApiKey = dbSettings?.kimi_api_key || Deno.env.get("KIMI_API_KEY") || Deno.env.get("MOONSHOT_API_KEY");
+    const nimApiKey = dbSettings?.nim_api_key || Deno.env.get("NVIDIA_NIM_API_KEY");
+    const openaiApiKey = dbSettings?.openai_api_key || Deno.env.get("OPENAI_API_KEY");
+
     const proxyConfig: ProxyConfig | undefined = dbSettings?.proxy_url
       ? { url: dbSettings.proxy_url, auth: dbSettings.proxy_auth ?? undefined }
       : undefined;
@@ -762,10 +767,7 @@ Deno.serve(async (req: Request) => {
         contentToAnalyze = `URL: ${sourceUrl || "Direct Text"}\nRaw Text Content:\n${body.raw_text}`;
       }
 
-      const kimiApiKey = Deno.env.get("KIMI_API_KEY") || Deno.env.get("MOONSHOT_API_KEY");
-      const groqApiKey = Deno.env.get("GROQ_API_KEY");
-      const nimApiKey = Deno.env.get("NVIDIA_NIM_API_KEY");
-      let extracted: any = null;
+                        let extracted: any = null;
 
       const systemPrompt = `You are Atlas HQ — an intelligent B2B sales machine designed to parse startup landing pages and text content from founders.
 Given the raw page text or scraped HTML, extract details strictly matching the following guidelines:
@@ -893,9 +895,7 @@ Return ONLY a valid JSON object:
 
     // ── BULK SOURCE ACTION ────────────────────────────────────────────────────────
     if (body.action === "bulk-source") {
-      const kimiApiKey = Deno.env.get("KIMI_API_KEY") || Deno.env.get("MOONSHOT_API_KEY");
-      const nimApiKey = Deno.env.get("NVIDIA_NIM_API_KEY");
-
+            
       const singleSystemPrompt = `You are Atlas HQ — an intelligent B2B sales machine designed to parse startup landing pages or social profiles.
 Given the HTML scraping or raw page text, extract details strictly matching the following guidelines:
 1. Company Name
@@ -1145,10 +1145,7 @@ Return ONLY a valid JSON array matching this exact schema:
 
     // ── HACKER NEWS SOURCING ACTION ──────────────────────────────────────────────
     if (body.action === "hn-source") {
-      const kimiApiKey = Deno.env.get("KIMI_API_KEY") || Deno.env.get("MOONSHOT_API_KEY");
-      const groqApiKey = Deno.env.get("GROQ_API_KEY");
-      const nimApiKey = Deno.env.get("NVIDIA_NIM_API_KEY");
-
+                  
       const query = body.query || "Show HN";
       const timeRange = body.time_range || "past_week";
 
@@ -1344,10 +1341,7 @@ Return ONLY a valid JSON array — one object per story. No commentary, no markd
 
     // ── STARTER STORY SOURCING ACTION ─────────────────────────────────────────────
     if (body.action === "starter-story-source") {
-      const kimiApiKey = Deno.env.get("KIMI_API_KEY") || Deno.env.get("MOONSHOT_API_KEY");
-      const groqApiKey = Deno.env.get("GROQ_API_KEY");
-      const nimApiKey = Deno.env.get("NVIDIA_NIM_API_KEY");
-
+                  
       try {
         // Fetch Starter Story's latest stories feed
         const ssRes = await fetch("https://www.starterstory.com/stories", {
@@ -1502,10 +1496,7 @@ Return ONLY a valid JSON array — one object per story:
 
     // ── YC DIRECTORY SOURCING ACTION ──────────────────────────────────────────────
     if (body.action === "yc-source") {
-      const kimiApiKey = Deno.env.get("KIMI_API_KEY") || Deno.env.get("MOONSHOT_API_KEY");
-      const groqApiKey = Deno.env.get("GROQ_API_KEY");
-      const nimApiKey = Deno.env.get("NVIDIA_NIM_API_KEY");
-
+                  
       const ycFilter = body.filter || "recent";
       const ycIndustry = body.industry || "";
 
@@ -1722,10 +1713,7 @@ Return ONLY a valid JSON array:
 
     // ── CLUTCH SOURCE ACTION ──────────────────────────────────────────────
     if (body.action === "clutch-source") {
-      const kimiApiKey = Deno.env.get("KIMI_API_KEY") || Deno.env.get("MOONSHOT_API_KEY");
-      const groqApiKey = Deno.env.get("GROQ_API_KEY");
-      const nimApiKey = Deno.env.get("NVIDIA_NIM_API_KEY");
-
+                  
       const industry = body.industry || "digital marketing";
       const location = body.location ? ` "${body.location}"` : "";
       
@@ -1774,10 +1762,7 @@ Return ONLY a valid JSON array:
 
     // ── UPWORK SOURCE ACTION ──────────────────────────────────────────────
     if (body.action === "upwork-source") {
-      const kimiApiKey = Deno.env.get("KIMI_API_KEY") || Deno.env.get("MOONSHOT_API_KEY");
-      const groqApiKey = Deno.env.get("GROQ_API_KEY");
-      const nimApiKey = Deno.env.get("NVIDIA_NIM_API_KEY");
-
+                  
       const keyword = body.keyword || "agency";
       
       try {
@@ -2266,10 +2251,7 @@ Return ONLY a valid JSON array:
     // ══════════════════════════════════════════════════════
     if (body.action === "generate-outreach") {
       const openaiKey = Deno.env.get("OPENAI_API_KEY");
-      const groqApiKey = Deno.env.get("GROQ_API_KEY");
-      const kimiApiKey = Deno.env.get("KIMI_API_KEY") || Deno.env.get("MOONSHOT_API_KEY");
-      const nimApiKey = Deno.env.get("NVIDIA_NIM_API_KEY");
-
+                  
       const lead = body.lead ?? {};
       const company = lead.organization_name || body.organization_name || "";
       const website = lead.primary_domain || body.primary_domain || "";
@@ -2695,10 +2677,7 @@ Prism Outreach & PR | https://prismoutreach.com | Digital PR, link building, med
         rawContent = CLUTCH_AGENCIES_DATA;
       }
 
-      const groqApiKey = Deno.env.get("GROQ_API_KEY");
-      const kimiApiKey = Deno.env.get("KIMI_API_KEY") || Deno.env.get("MOONSHOT_API_KEY");
-      const nimApiKey = Deno.env.get("NVIDIA_NIM_API_KEY");
-
+                  
       if (!openaiKey && !groqApiKey && !kimiApiKey && !nimApiKey) {
         return new Response(JSON.stringify({ error: "No AI API keys configured. Please add OpenAI, Groq, Kimi, or NIM key." }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -2849,11 +2828,8 @@ Respond ONLY as a JSON object with a single key "leads":
     // ACTION: analyze-pain
     // ─────────────────────────────────────────────
     if (body.action === "analyze-pain") {
-      const groqApiKey = Deno.env.get("GROQ_API_KEY");
-      const openaiKey = Deno.env.get("OPENAI_API_KEY");
-      const kimiApiKey = Deno.env.get("KIMI_API_KEY") || Deno.env.get("MOONSHOT_API_KEY");
-      const nimApiKey = Deno.env.get("NVIDIA_NIM_API_KEY");
-
+            const openaiKey = Deno.env.get("OPENAI_API_KEY");
+            
       const { organization_name: company, website, research } = body as any;
       const researchContext = research
         ? (typeof research === "string" ? research : JSON.stringify(research, null, 2))
@@ -2991,8 +2967,7 @@ Respond ONLY as a JSON object:
   "roi": "When does this pay for itself? Name the calculation."
 }`;
 
-      const groqApiKey = Deno.env.get("GROQ_API_KEY");
-      if (!groqApiKey) throw new Error("GROQ_API_KEY not configured");
+            if (!groqApiKey) throw new Error("GROQ_API_KEY not configured");
 
       let offer: Record<string, any> = {};
       try {
@@ -3016,7 +2991,6 @@ Respond ONLY as a JSON object:
     // ACTION: generate-proof
     // ─────────────────────────────────────────────
     if (body.action === "generate-proof") {
-      const groqApiKey = Deno.env.get("GROQ_API_KEY") || Deno.env.get("KIMI_API_KEY");
       if (!groqApiKey) throw new Error("API keys not configured for generate-proof");
       
       const prompt = `You are a B2B diagnostic expert. A consultant wants to send a "Proof Asset" (like an async teardown video or workflow map) to a prospect to prove competence based on a detected pain signal.
@@ -3060,7 +3034,6 @@ Produce a structured JSON response matching this schema:
     // ACTION: partner-search
     // ─────────────────────────────────────────────
     if (body.action === "partner-search") {
-      const groqApiKey = Deno.env.get("GROQ_API_KEY") || Deno.env.get("KIMI_API_KEY");
       if (!groqApiKey) throw new Error("API keys not configured for partner-search");
       
       const prompt = `You are an expert at identifying strategic B2B partnerships. A user is looking for partners based on this query: "${body.query || 'Agency partners'}".
@@ -3192,8 +3165,7 @@ Perform a complete, structured analysis and return JSON with these exact keys:
   }
 }`;
 
-      const groqApiKey = Deno.env.get("GROQ_API_KEY");
-      if (!groqApiKey) throw new Error("GROQ_API_KEY not configured");
+            if (!groqApiKey) throw new Error("GROQ_API_KEY not configured");
 
       let enriched: any = {};
       try {

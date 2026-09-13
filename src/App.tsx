@@ -13,8 +13,6 @@ import AuthCallback from "./pages/AuthCallback";
 import MetaphorAuthCallback from "./pages/MetaphorAuthCallback";
 import HqShell from "./components/atlas/HqShell";
 import Landing from "./pages/Landing";
-import Index from "./pages/Index";
-import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 
 const Onboarding = React.lazy(() => import("./pages/Onboarding"));
@@ -25,7 +23,6 @@ const HqProposal = React.lazy(() => import("./pages/hq/HqProposal"));
 const DailyBriefing = React.lazy(() => import("./pages/hq/DailyBriefing"));
 const CommandFeed = React.lazy(() => import("./pages/CommandFeed"));
 const HqSettings = React.lazy(() => import("./pages/hq/HqSettings"));
-const PublicProfile = React.lazy(() => import("./pages/PublicProfile"));
 
 const HqDashboard = React.lazy(() => import("./pages/hq/HqDashboard"));
 const HqDiscover = React.lazy(() => import("./pages/hq/HqDiscover"));
@@ -93,19 +90,6 @@ const App = () => (
                 <Route path="/auth/metaphor/callback" element={<MetaphorAuthCallback />} />
                 <Route path="/onboarding" element={<Onboarding />} />
 
-                {/* ── Legacy redirects ──────────────────────────────────────── */}
-                <Route path="/flow" element={<Navigate to="/hq/engine" replace />} />
-                <Route path="/hq/flow" element={<Navigate to="/hq/engine" replace />} />
-                <Route path="/hq/recon" element={<Navigate to="/hq/engine" replace />} />
-                <Route path="/hq/prospects" element={<Navigate to="/hq/engine" replace />} />
-                <Route path="/hq/leads" element={<Navigate to="/hq/engine" replace />} />
-                <Route path="/hq/pipeline" element={<Navigate to="/hq/engine" replace />} />
-                <Route path="/hq/outreach" element={<Navigate to="/hq/engine" replace />} />
-                <Route path="/hq/icp" element={<Navigate to="/hq/engine" replace />} />
-                <Route path="/hq/proposal" element={<Navigate to="/hq/engine" replace />} />
-                <Route path="/start" element={<Navigate to="/hq/engine" replace />} />
-                <Route path="/map/starter" element={<Navigate to="/hq/engine" replace />} />
-                <Route path="/app" element={<Navigate to="/hq/engine" replace />} />
                 <Route path="/app/*" element={<Navigate to="/hq/engine" replace />} />
 
                 {/* ── Public ───────────────────────────────────────────────── */}

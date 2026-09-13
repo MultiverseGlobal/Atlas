@@ -380,10 +380,10 @@ export default function HqRevenueEngine() {
   }
 
   return (
-    <div className="flex h-screen pt-[72px] bg-background grain text-foreground font-sans overflow-hidden">
+    <div className="flex flex-col md:flex-row h-screen pt-[72px] bg-background grain text-foreground font-sans overflow-hidden">
 
-      {/* ── Left Sidebar: Pipeline ──────────────────────────────────────── */}
-      <div className="w-[340px] border-r border-border/60 bg-card/20 backdrop-blur-xl flex flex-col shrink-0">
+      {/* ── Top/Left Sidebar: Pipeline ──────────────────────────────────────── */}
+      <div className="w-full md:w-[340px] h-[35vh] md:h-auto border-b md:border-b-0 md:border-r border-border/60 bg-card/20 backdrop-blur-xl flex flex-col shrink-0">
         <div className="p-5 border-b border-border/60 flex items-center justify-between bg-card/40 backdrop-blur-md">
           <div>
             <h2 className="font-display text-sm tracking-tight font-bold">PIPELINE</h2>
@@ -446,11 +446,11 @@ export default function HqRevenueEngine() {
         {activeOpp ? (
           <div className="relative z-10 flex flex-col h-full">
             {/* Header */}
-            <div className="px-10 py-8 border-b border-border/60 bg-card/40 backdrop-blur-xl shrink-0">
-              <div className="max-w-5xl mx-auto w-full flex items-start justify-between">
+            <div className="px-5 md:px-10 py-6 md:py-8 border-b border-border/60 bg-card/40 backdrop-blur-xl shrink-0">
+              <div className="max-w-5xl mx-auto w-full flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div>
-                  <div className="flex items-center gap-3 mb-1">
-                    <h1 className="text-3xl font-display font-bold tracking-tight text-foreground">
+                  <div className="flex flex-wrap items-center gap-3 mb-1">
+                    <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight text-foreground">
                       {activeOpp.organization_name}
                     </h1>
                     <span className="text-xs font-mono px-2 py-0.5 rounded-full border border-foreground/20 bg-foreground/5 text-foreground">
@@ -471,7 +471,7 @@ export default function HqRevenueEngine() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-10">
+            <div className="flex-1 overflow-y-auto p-5 md:p-10">
               <div className="max-w-5xl mx-auto w-full space-y-10">
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

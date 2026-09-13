@@ -2625,7 +2625,7 @@ Prism Outreach & PR | https://prismoutreach.com | Digital PR, link building, med
         }
         sourceLabel = "UpCity";
 
-      } else if (source === "hn_jobs") {
+      } else if (source === "hn" || source === "hn_jobs") {
         try {
           const threadRes = await fetch("https://hn.algolia.com/api/v1/search?query=Ask+HN%3A+Who+is+hiring&tags=story,author_whoishiring&hitsPerPage=1");
           const threadData = await threadRes.json();
@@ -2640,7 +2640,7 @@ Prism Outreach & PR | https://prismoutreach.com | Digital PR, link building, med
         }
         sourceLabel = "Hacker News Who's Hiring";
 
-      } else if (source === "yc_companies") {
+      } else if (source === "yc" || source === "yc_companies") {
         try {
           const ycRes = await fetch("https://raw.githubusercontent.com/yc-oss/oss/main/companies.json");
           const ycData = await ycRes.json();

@@ -141,7 +141,7 @@ async function callGemini(systemPrompt: string, userPrompt: string, apiKey: stri
 }
 
 // ── Build a hard fallback if LLM fails ──────────────────────────────────────
-function buildFallback(organization_name: string, founderName: string, bottleneckArea: string, hypothesis: string) {
+function buildFallback(company: string, founderName: string, bottleneckArea: string, hypothesis: string) {
   const first = founderName && !founderName.toLowerCase().includes("founder") ? founderName.split(" ")[0] : "there";
   return {
     email: {

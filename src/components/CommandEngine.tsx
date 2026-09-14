@@ -251,17 +251,17 @@ export function CommandEngine({
                   ? `Campaign: "${campaignState.prompt}"`
                   : "State your target intent (e.g. 'Target Series-A B2B SaaS founders for outbound pipeline')..."
               }
-              className={`w-full bg-transparent px-5 py-5 font-sans font-normal text-base sm:text-xl focus:outline-none disabled:opacity-85 tracking-tight ${
+              className={`flex-1 min-w-0 bg-transparent px-5 py-5 font-sans font-normal text-base sm:text-xl focus:outline-none disabled:opacity-85 tracking-tight ${
                 isDark ? "placeholder:text-white/35 text-white" : "placeholder:text-neutral-400 text-neutral-900"
               }`}
             />
 
             {/* Tactical Controls */}
-            <div className="pr-4 flex items-center gap-2">
+            <div className="pr-4 flex items-center gap-2 shrink-0 whitespace-nowrap">
               <button
                 type="button"
                 onClick={onToggleAutoPilot}
-                className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition-all cursor-pointer shadow-sm ${
+                className={`flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-xs font-semibold shrink-0 whitespace-nowrap transition-all cursor-pointer shadow-sm ${
                   isDark
                     ? "border-white/20 bg-white/[0.08] text-white hover:bg-white/15"
                     : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50 shadow-md"
@@ -284,7 +284,7 @@ export function CommandEngine({
                     exit={{ opacity: 0, scale: 0.85, x: 10 }}
                     type="submit"
                     disabled={inputPrompt.trim().length === 0}
-                    className={`flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all shadow-md whitespace-nowrap flex-shrink-0 ${
+                    className={`flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all shadow-md whitespace-nowrap shrink-0 ${
                       inputPrompt.trim().length === 0
                         ? isDark ? "bg-white/10 text-white/40 cursor-not-allowed" : "bg-neutral-200 text-neutral-400 cursor-not-allowed"
                         : isDark
@@ -302,7 +302,7 @@ export function CommandEngine({
                 <button
                   type="button"
                   onClick={handleReset}
-                  className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-mono font-semibold transition-all cursor-pointer shadow-sm ${
+                  className={`flex items-center gap-1.5 rounded-xl border px-3.5 py-2.5 text-xs font-mono font-semibold shrink-0 whitespace-nowrap transition-all cursor-pointer shadow-sm ${
                     isDark
                       ? "border-white/20 bg-white/[0.08] text-white hover:bg-white/15"
                       : "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50 shadow-md"

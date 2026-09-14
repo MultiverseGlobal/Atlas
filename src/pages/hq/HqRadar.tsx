@@ -120,14 +120,27 @@ export default function HqRadar() {
   // ── Load waiting Clario drafts for the active opportunity ─────────────────
   const loadWaitingDrafts = useCallback(async () => {
     if (!activeOpportunityId || !user) return;
-    const { data } = await supabase
-      .from("atlas_outreach")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("opportunity_id", activeOpportunityId)
-      .eq("status", "waiting_for_clario")
-      .order("created_at", { ascending: false });
-    setWaitingDrafts(data || []);
+    try {
+      const { data, error } = await supabase
+        .from("atlas_outreach")
+        .select("*")
+        .eq("user_id", user.id)
+        .or(`opportunity_id.eq.${activeOpportunityId},company_id.eq.${activeOpportunityId}`)
+        .eq("status", "waiting_for_clario")
+        .order("created_at", { ascending: false });
+
+      if (!error && data) {
+        setWaitingDrafts(
+          data.map((d: any) => ({
+            ...d,
+            draft_subject: d.draft_subject || d.subject || "",
+            draft_body: d.draft_body || d.body || "",
+          }))
+        );
+      }
+    } catch (err) {
+      console.error("Failed to load waiting drafts:", err);
+    }
   }, [activeOpportunityId, user]);
 
   useEffect(() => { loadWaitingDrafts(); }, [loadWaitingDrafts]);
@@ -339,10 +352,14 @@ export default function HqRadar() {
         .from("atlas_outreach")
         .insert({
           user_id: user.id,
+          company_id: activeOpportunityId,
           opportunity_id: activeOpportunityId,
           contact_id: activeContact?.id || null,
+          type: "cold_email",
           channel: "email",
+          subject: drafts.email.subject,
           draft_subject: drafts.email.subject,
+          body: drafts.email.body,
           draft_body: drafts.email.body,
           status: "waiting_for_clario",
           clario_requested_at: new Date().toISOString(),

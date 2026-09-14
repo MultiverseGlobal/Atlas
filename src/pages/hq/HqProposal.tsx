@@ -111,7 +111,7 @@ export default function HqProposal() {
     setGenerating(true);
     setProposal(null);
     try {
-      const { data, error } = await supabase.functions.invoke("sourcing-machine", {
+      const { data, error } = await invokeSourcingMachine( {
         body: {
           action: "generate-proposal",
           lead: {
@@ -164,7 +164,8 @@ export default function HqProposal() {
     if (proposal.investment) { lines.push("INVESTMENT"); lines.push(proposal.investment); lines.push(""); }
     if (proposal.why_us) { lines.push("WHY WORK WITH ME"); lines.push(proposal.why_us); lines.push(""); }
     if (proposal.next_steps) { lines.push("NEXT STEPS"); lines.push(proposal.next_steps); }
-    return lines.join("\n");
+    return lines.join("\import { invokeSourcingMachine } from "@/lib/sourcingMachineProxy";
+n");
   };
 
   const handleCopy = () => {

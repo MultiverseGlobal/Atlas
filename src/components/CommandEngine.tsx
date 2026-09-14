@@ -452,44 +452,63 @@ export function CommandEngine({
                 </div>
 
                 {/* Discovered Leads List or ICP Review */}
-                {campaignState.status === "reviewing_icp" ? (
-                  <div className="space-y-3 max-h-56 overflow-y-auto pr-1 text-left text-xs font-mono text-foreground">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Target Keyword</label>
-                      <input 
-                        className="w-full rounded-md border p-2 bg-background border-border focus:border-foreground transition-colors" 
-                        value={tempIcp.keyword} onChange={e => setTempIcp(prev => ({...prev, keyword: e.target.value}))} 
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
+                {campaignState.status === "reviewing_icp" || (campaignState.status === "discovering" && campaignState.leads.length === 0 && !campaignState.error) ? (
+                  <div className="flex flex-col text-left text-xs font-mono text-foreground">
+                    <div className="space-y-3 pr-1 pb-2">
                       <div className="space-y-1">
-                        <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Headcount Bound</label>
-                        <div className="rounded-md border p-1.5 bg-background border-border text-[11px] font-semibold text-emerald-500 flex items-center justify-between">
-                          <span>{tempIcp.min_headcount || 5}–{tempIcp.max_headcount || 30} staff</span>
-                          <span className="text-[9px] bg-emerald-500/10 text-emerald-600 px-1 rounded">Strict</span>
+                        <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Target Keyword</label>
+                        <input 
+                          className="w-full rounded-md border p-2 bg-background border-border focus:border-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                          value={tempIcp.keyword} onChange={e => setTempIcp(prev => ({...prev, keyword: e.target.value}))}
+                          disabled={campaignState.status === "discovering"}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Headcount Bound</label>
+                          <div className={`rounded-md border p-1.5 bg-background border-border text-[11px] font-semibold text-emerald-500 flex items-center justify-between ${campaignState.status === "discovering" ? "opacity-50" : ""}`}>
+                            <span>{tempIcp.min_headcount || 5}–{tempIcp.max_headcount || 30} staff</span>
+                            <span className="text-[9px] bg-emerald-500/10 text-emerald-600 px-1 rounded font-bold">Strict</span>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Target Regions</label>
+                          <div className={`rounded-md border p-1.5 bg-background border-border text-[11px] font-semibold text-sky-500 truncate ${campaignState.status === "discovering" ? "opacity-50" : ""}`} title={(tempIcp.regions || ["US", "UK"]).join(", ")}>
+                            {(tempIcp.regions || ["US", "UK"]).join(", ")}
+                          </div>
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Target Regions</label>
-                        <div className="rounded-md border p-1.5 bg-background border-border text-[11px] font-semibold text-sky-500 truncate">
-                          {(tempIcp.regions || ["US", "UK"]).join(", ")}
-                        </div>
+                        <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Hypothesis</label>
+                        <textarea 
+                          className="w-full rounded-md border p-2 bg-background border-border focus:border-foreground transition-colors resize-none disabled:opacity-50 disabled:cursor-not-allowed" 
+                          rows={2}
+                          value={tempIcp.hypothesis} onChange={e => setTempIcp(prev => ({...prev, hypothesis: e.target.value}))} 
+                          disabled={campaignState.status === "discovering"}
+                        />
                       </div>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Hypothesis</label>
-                      <textarea 
-                        className="w-full rounded-md border p-2 bg-background border-border focus:border-foreground transition-colors resize-none" 
-                        rows={2}
-                        value={tempIcp.hypothesis} onChange={e => setTempIcp(prev => ({...prev, hypothesis: e.target.value}))} 
-                      />
+                    {/* Sticky Action Footer */}
+                    <div className="pt-2 border-t border-border/50 shrink-0">
+                      <button 
+                        type="button"
+                        onClick={handleApproveIcp} 
+                        disabled={campaignState.status === "discovering"}
+                        className="w-full bg-foreground text-background font-bold py-2.5 rounded-md text-xs hover:opacity-90 transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-70 disabled:cursor-wait"
+                      >
+                        {campaignState.status === "discovering" ? (
+                          <>
+                            <Cpu className="w-4 h-4 text-emerald-500 animate-spin" />
+                            <span>Scanning Sources...</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                            <span>Approve & Scan</span>
+                          </>
+                        )}
+                      </button>
                     </div>
-                    <button 
-                      onClick={handleApproveIcp} 
-                      className="w-full mt-2 bg-foreground text-background font-bold py-2 rounded-md text-xs hover:opacity-90 transition-opacity flex items-center justify-center gap-2 cursor-pointer shadow-sm"
-                    >
-                      <ShieldCheck className="w-3.5 h-3.5" /> Approve & Scan
-                    </button>
                   </div>
                 ) : campaignState.error && campaignState.leads.length === 0 ? (
                   <div className="text-center py-4 text-xs font-mono text-rose-500 bg-rose-500/10 rounded-xl border border-rose-500/20">

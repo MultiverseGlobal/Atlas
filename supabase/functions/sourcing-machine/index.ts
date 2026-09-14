@@ -319,26 +319,18 @@ async function callNvidiaNim(systemPrompt: string, userPrompt: string, apiKey: s
 // Call Groq API
 async function callGroq(systemPrompt: string, userPrompt: string, apiKey: string, expectArray = false): Promise<any> {
   let attempt = 0;
-  const maxRetries = 3;
+  const maxRetries = 2;
   while (attempt < maxRetries) {
     try {
-      if (attempt === 1 && Deno.env.get("KIMI_API_KEY")) {
-        console.log("[callGroq] Fallback to Kimi AI due to previous failure.");
-        return await callKimi(systemPrompt, userPrompt, Deno.env.get("KIMI_API_KEY")!, expectArray);
-      } else if (attempt === 2 && Deno.env.get("OPENAI_API_KEY")) {
-        console.log("[callGroq] Fallback to OpenAI due to previous failure.");
-        return await callOpenAI(systemPrompt, userPrompt, Deno.env.get("OPENAI_API_KEY")!, expectArray);
-      }
-
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${apiKey}`,
         },
-        signal: AbortSignal.timeout(50000), // 50 seconds timeout
+        signal: AbortSignal.timeout(40000),
         body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
+          model: "openai/gpt-oss-120b",
           temperature: 0.3,
           max_tokens: 2048,
           messages: [
@@ -365,42 +357,53 @@ async function callGroq(systemPrompt: string, userPrompt: string, apiKey: string
         throw err;
       }
       console.warn(`[callGroq] Attempt ${attempt} failed: ${err.message}. Retrying...`);
-      await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+      await new Promise(r => setTimeout(r, 1000));
     }
   }
 }
 
 // Call Google Gemini
 async function callGemini(systemPrompt: string, userPrompt: string, apiKey: string, expectArray = false): Promise<any> {
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    signal: AbortSignal.timeout(50000), // 50 seconds timeout
-    body: JSON.stringify({
-      system_instruction: {
-        parts: [{ text: systemPrompt }]
-      },
-      contents: [{
-        parts: [{ text: userPrompt }]
-      }],
-      generationConfig: {
-        temperature: 0.3,
-        response_mime_type: "application/json"
+  const modelsToTry = [
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
+  ];
+
+  let lastErr = "";
+  for (const modelUrl of modelsToTry) {
+    try {
+      const res = await fetch(`${modelUrl}?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(40000),
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ parts: [{ text: userPrompt }] }],
+          generationConfig: {
+            temperature: 0.3,
+            response_mime_type: "application/json"
+          }
+        }),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.warn(`[callGemini] ${modelUrl} failed: ${res.status} ${errorText}`);
+        lastErr = `${modelUrl.split("/").pop()?.split(":")[0]}: ${res.status} ${errorText}`;
+        continue;
       }
-    }),
-  });
-  if (!res.ok) {
-    const errorText = await res.text();
-    if (res.status === 400 && errorText.includes("API key not valid")) {
-      throw new Error("AUTH_ERROR: Gemini API key is invalid.");
+
+      const data = await res.json();
+      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+      return extractJson(rawText, expectArray);
+    } catch (e: any) {
+      lastErr = e.message;
     }
-    throw new Error(`Gemini API error: ${res.status} ${errorText}`);
   }
-  const data = await res.json();
-  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-  return extractJson(rawText, expectArray);
+  throw new Error(`Gemini API error: ${lastErr}`);
 }
 
 // Parse structured markdown notes into Notion block formats
@@ -732,6 +735,8 @@ Deno.serve(async (req: Request) => {
     const kimiApiKey = dbSettings?.kimi_api_key || Deno.env.get("KIMI_API_KEY") || Deno.env.get("MOONSHOT_API_KEY");
     const nimApiKey = dbSettings?.nim_api_key || Deno.env.get("NVIDIA_NIM_API_KEY");
     const openaiApiKey = dbSettings?.openai_api_key || Deno.env.get("OPENAI_API_KEY");
+    const openaiKey = openaiApiKey;
+    const geminiApiKey = dbSettings?.gemini_api_key || Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_AI_API_KEY");
 
     const proxyConfig: ProxyConfig | undefined = dbSettings?.proxy_url
       ? { url: dbSettings.proxy_url, auth: dbSettings.proxy_auth ?? undefined }
@@ -2278,6 +2283,33 @@ Return ONLY a valid JSON array:
       }
     }
 
+    if (body.action === "list-models") {
+      const groqApiKey = Deno.env.get("GROQ_API_KEY");
+      const geminiApiKey = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_AI_API_KEY");
+      let groqModels = null;
+      let geminiModels = null;
+
+      if (groqApiKey) {
+        try {
+          const r = await fetch("https://api.groq.com/openai/v1/models", {
+            headers: { Authorization: `Bearer ${groqApiKey}` }
+          });
+          groqModels = await r.json();
+        } catch (e: any) { groqModels = e.message; }
+      }
+
+      if (geminiApiKey) {
+        try {
+          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${geminiApiKey}`);
+          geminiModels = await r.json();
+        } catch (e: any) { geminiModels = e.message; }
+      }
+
+      return new Response(JSON.stringify({ groqModels, geminiModels }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ══════════════════════════════════════════════════════
     // ACTION: decompose-prompt
     // Decomposes raw user prompt into high-precision ICP parameters
@@ -2289,10 +2321,6 @@ Return ONLY a valid JSON array:
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-
-      const groqApiKey = dbSettings?.groq_api_key || Deno.env.get("GROQ_API_KEY");
-      const geminiApiKey = dbSettings?.gemini_api_key || Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_AI_API_KEY");
-      const openaiKey = Deno.env.get("OPENAI_API_KEY");
 
       const systemPrompt = `You are a campaign intelligence strategist for Atlas B2B acquisition platform.
 Analyze the user's natural language campaign prompt and decompose it into precise search and qualification parameters.
@@ -2307,21 +2335,21 @@ Respond ONLY with a valid JSON object matching this schema:
 }`;
 
       let parsedResult: any = null;
-      let lastErr = "";
+      const errors: Record<string, string> = {};
 
-      if (groqApiKey) {
-        try {
-          parsedResult = await callGroq(systemPrompt, `Decompose this campaign prompt:\n\n"${userPromptText}"`, groqApiKey, false);
-        } catch (e: any) {
-          lastErr = `Groq: ${e.message}`;
-        }
-      }
-
-      if (!parsedResult && geminiApiKey) {
+      if (geminiApiKey) {
         try {
           parsedResult = await callGemini(systemPrompt, `Decompose this campaign prompt:\n\n"${userPromptText}"`, geminiApiKey, false);
         } catch (e: any) {
-          lastErr = `Gemini: ${e.message}`;
+          errors.gemini = e.message;
+        }
+      }
+
+      if (!parsedResult && groqApiKey) {
+        try {
+          parsedResult = await callGroq(systemPrompt, `Decompose this campaign prompt:\n\n"${userPromptText}"`, groqApiKey, false);
+        } catch (e: any) {
+          errors.groq = e.message;
         }
       }
 
@@ -2329,7 +2357,7 @@ Respond ONLY with a valid JSON object matching this schema:
         try {
           parsedResult = await callOpenAI(systemPrompt, `Decompose this campaign prompt:\n\n"${userPromptText}"`, openaiKey, false);
         } catch (e: any) {
-          lastErr = `OpenAI: ${e.message}`;
+          errors.openai = e.message;
         }
       }
 
@@ -2365,7 +2393,7 @@ Respond ONLY with a valid JSON object matching this schema:
           hypothesis: `Solving operational throughput constraints for ${cleanKeyword} teams.`,
           targetCount: 15,
           fallback_used: true,
-          note: lastErr || undefined,
+          provider_errors: errors,
         };
       }
 
@@ -2894,7 +2922,6 @@ Prism Outreach & PR | https://prismoutreach.com | Digital PR, link building, med
         rawContent = CLUTCH_AGENCIES_DATA;
       }
 
-      const geminiApiKey = dbSettings?.gemini_api_key || Deno.env.get("GEMINI_API_KEY") || Deno.env.get("GOOGLE_AI_API_KEY");
       if (!openaiKey && !groqApiKey && !kimiApiKey && !nimApiKey && !geminiApiKey) {
         return new Response(JSON.stringify({ error: "No AI API keys configured. Please add OpenAI, Groq, Kimi, NIM, or Gemini key." }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -2950,9 +2977,17 @@ Respond ONLY as a JSON object with a single key "leads":
 }`;
 
       let leads: any[] | null = null;
-      let lastError = "No AI providers available.";
+      let lastError = "No AI providers succeeded.";
 
-      // 1. Try Groq (Llama 3)
+      // 1. Try Gemini (Gemini 2.5 Flash - fastest, highest reliability)
+      if (!leads && geminiApiKey) {
+        try {
+          const res = await callGemini(systemPrompt, userPrompt, geminiApiKey, false);
+          leads = Array.isArray(res) ? res : (res.leads || res.companies || []);
+        } catch (e: any) { lastError = `Gemini Error: ${e.message}`; }
+      }
+
+      // 2. Try Groq (Llama 3 / gpt-oss-120b)
       if (!leads && groqApiKey) {
         try {
           const res = await callGroq(systemPrompt, userPrompt, groqApiKey, false);
@@ -2960,7 +2995,7 @@ Respond ONLY as a JSON object with a single key "leads":
         } catch (e: any) { lastError = `Groq Error: ${e.message}`; }
       }
 
-      // 2. Try Kimi (Moonshot)
+      // 3. Try Kimi (Moonshot)
       if (!leads && kimiApiKey) {
         try {
           const res = await callKimi(systemPrompt, userPrompt, kimiApiKey, false);
@@ -2968,7 +3003,7 @@ Respond ONLY as a JSON object with a single key "leads":
         } catch (e: any) { lastError = `Kimi Error: ${e.message}`; }
       }
 
-      // 3. Try NIM (Llama 3.1)
+      // 4. Try NIM (Llama 3.1)
       if (!leads && nimApiKey) {
         try {
           const res = await callNvidiaNim(systemPrompt, userPrompt, nimApiKey, false);
@@ -2976,7 +3011,7 @@ Respond ONLY as a JSON object with a single key "leads":
         } catch (e: any) { lastError = `NIM Error: ${e.message}`; }
       }
 
-      // 4. Try OpenAI directly (as fallback if others failed or weren't set)
+      // 5. Try OpenAI directly (as fallback)
       if (!leads && openaiKey) {
         try {
           const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -3011,14 +3046,6 @@ Respond ONLY as a JSON object with a single key "leads":
         } catch (e: any) {
           lastError = `OpenAI request failed: ${e.message}`;
         }
-      }
-
-      // 5. Try Gemini
-      if (!leads && geminiApiKey) {
-        try {
-          const res = await callGemini(systemPrompt, userPrompt, geminiApiKey, false);
-          leads = Array.isArray(res) ? res : (res.leads || res.companies || []);
-        } catch (e: any) { lastError = `Gemini Error: ${e.message}`; }
       }
 
       // DO NOT return fake fallback agencies. If AI fails, return an honest error so user is aware.

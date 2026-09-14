@@ -242,7 +242,11 @@ export async function enrichLeadWithJina(url: string): Promise<string | null> {
 }
 
 // ── Generate Real Outreach Copy ──────────────────────────────────────────────
-export async function generateLeadOutreach(lead: DiscoveredLead, hypothesis: string): Promise<OutreachDraft> {
+export async function generateLeadOutreach(
+  lead: DiscoveredLead, 
+  hypothesis: string, 
+  clarioVideoUrl?: string
+): Promise<OutreachDraft> {
   try {
     const { data, error } = await supabase.functions.invoke("generate-outreach", {
       body: {
@@ -251,6 +255,7 @@ export async function generateLeadOutreach(lead: DiscoveredLead, hypothesis: str
         founder_role: lead.founder?.role || "CEO",
         bottleneck: lead.bottleneck || "Client distribution & manual pipeline",
         approach_angle: hypothesis,
+        clario_video_url: clarioVideoUrl,
         sender_name: "Atlas Partner",
       },
     });
@@ -260,9 +265,16 @@ export async function generateLeadOutreach(lead: DiscoveredLead, hypothesis: str
     }
 
     if (data) {
+      let bodyText = data.email?.body || `Hi ${lead.founder?.name?.split(" ")[0] || "there"},\n\nI came across ${lead.company} while researching high-velocity teams in this sector.\n\n${hypothesis}\n\nAre you currently handling ${lead.bottleneck?.toLowerCase() || "pipeline generation"} in-house, or systematizing this workflow?\n\nBest regards,\nAtlas Partner`;
+      if (clarioVideoUrl && bodyText.includes("{{CLARIO_VIDEO_URL}}")) {
+        bodyText = bodyText.replaceAll("{{CLARIO_VIDEO_URL}}", clarioVideoUrl);
+      } else if (clarioVideoUrl && !bodyText.includes(clarioVideoUrl)) {
+        bodyText += `\n\nI recorded a short 45s screen walkthrough showing how this works: ${clarioVideoUrl}`;
+      }
+
       return {
         subject: data.email?.subject || `Question on ${lead.company}'s operations`,
-        body: data.email?.body || `Hi ${lead.founder?.name?.split(" ")[0] || "there"},\n\nI came across ${lead.company} while researching high-velocity teams in this sector.\n\n${hypothesis}\n\nAre you currently handling ${lead.bottleneck?.toLowerCase() || "pipeline generation"} in-house, or systematizing this workflow?\n\nBest regards,\nAtlas Partner`,
+        body: bodyText,
         linkedin_dm: data.linkedin_dm || `Hi ${lead.founder?.name?.split(" ")[0] || "there"} — noticed ${lead.company}'s trajectory. Quick question on how your team is handling ${lead.bottleneck?.toLowerCase() || "client acquisition"} this quarter?`,
         loom_script: data.loom_script,
       };

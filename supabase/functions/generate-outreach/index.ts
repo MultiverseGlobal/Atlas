@@ -371,9 +371,14 @@ Return ONLY this JSON (no markdown, no explanation):
       }
     }
 
+    const clarioVideoUrl = body.clario_video_url || body.video_url;
+    if (clarioVideoUrl && result?.email?.body) {
+      result.email.body = result.email.body.replaceAll("{{CLARIO_VIDEO_URL}}", clarioVideoUrl);
+    }
+
     return new Response(JSON.stringify({
       ...result,
-      // Signal to the frontend that this draft is ready to be paired with a Clario video
+      clario_video_url: clarioVideoUrl || null,
       clario_placeholder_present: typeof result?.email?.body === "string" &&
         result.email.body.includes("{{CLARIO_VIDEO_URL}}"),
     }), {

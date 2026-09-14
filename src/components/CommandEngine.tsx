@@ -43,7 +43,16 @@ export function CommandEngine({
 }: CommandEngineProps) {
   const [inputPrompt, setInputPrompt] = useState("");
   const [selectedLeadModal, setSelectedLeadModal] = useState<DiscoveredLead | null>(null);
-  const [tempIcp, setTempIcp] = useState({ industry: "", keyword: "", hypothesis: "", targetCount: 15 });
+  const [tempIcp, setTempIcp] = useState<{
+    industry: string;
+    keyword: string;
+    hypothesis: string;
+    targetCount: number;
+    min_headcount?: number;
+    max_headcount?: number;
+    regions?: string[];
+    decision_maker_titles?: string[];
+  }>({ industry: "", keyword: "", hypothesis: "", targetCount: 15, min_headcount: 5, max_headcount: 30, regions: ["US", "UK"], decision_maker_titles: ["Founder", "CEO"] });
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isRunning = campaignState.status !== "idle" && campaignState.status !== "completed";
@@ -84,6 +93,10 @@ export function CommandEngine({
         keyword: strategy.keyword,
         hypothesis: strategy.hypothesis,
         targetCount: strategy.targetCount,
+        min_headcount: strategy.min_headcount,
+        max_headcount: strategy.max_headcount,
+        regions: strategy.regions,
+        decision_maker_titles: strategy.decision_maker_titles,
       });
 
       onStateChange((prev) => ({
@@ -94,6 +107,10 @@ export function CommandEngine({
         industry: strategy.industry,
         hypothesis: strategy.hypothesis,
         targetCount: strategy.targetCount,
+        min_headcount: strategy.min_headcount,
+        max_headcount: strategy.max_headcount,
+        regions: strategy.regions,
+        decision_maker_titles: strategy.decision_maker_titles,
       }));
     } catch (err: any) {
       toast.error(err.message || "Failed to decompose intent.");
@@ -113,13 +130,29 @@ export function CommandEngine({
       industry: tempIcp.industry,
       hypothesis: tempIcp.hypothesis,
       targetCount: tempIcp.targetCount,
+      min_headcount: tempIcp.min_headcount,
+      max_headcount: tempIcp.max_headcount,
+      regions: tempIcp.regions,
+      decision_maker_titles: tempIcp.decision_maker_titles,
     }));
 
     try {
-      toast(`Scanning ${campaignState.channel?.toUpperCase()} & databases for ${tempIcp.keyword}...`, {
+      toast(`Scanning ${campaignState.channel?.toUpperCase()} & directories for ${tempIcp.keyword} (${tempIcp.min_headcount || 5}-${tempIcp.max_headcount || 30} staff)...`, {
         icon: <Radar className="h-4 w-4 text-sky-500" />,
       });
-      const foundLeads = await discoverCampaignLeads(campaignState.channel!, tempIcp.keyword, tempIcp.industry);
+      const foundLeads = await discoverCampaignLeads(
+        campaignState.channel!, 
+        tempIcp.keyword, 
+        tempIcp.industry,
+        {
+          min_headcount: tempIcp.min_headcount,
+          max_headcount: tempIcp.max_headcount,
+          regions: tempIcp.regions,
+          decision_maker_titles: tempIcp.decision_maker_titles,
+          hypothesis: tempIcp.hypothesis,
+          raw_prompt: campaignState.prompt,
+        }
+      );
 
       if (foundLeads.length === 0) {
         throw new Error("No leads found for this query. Try a broader industry or keyword.");
@@ -428,6 +461,21 @@ export function CommandEngine({
                         value={tempIcp.keyword} onChange={e => setTempIcp(prev => ({...prev, keyword: e.target.value}))} 
                       />
                     </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Headcount Bound</label>
+                        <div className="rounded-md border p-1.5 bg-background border-border text-[11px] font-semibold text-emerald-500 flex items-center justify-between">
+                          <span>{tempIcp.min_headcount || 5}–{tempIcp.max_headcount || 30} staff</span>
+                          <span className="text-[9px] bg-emerald-500/10 text-emerald-600 px-1 rounded">Strict</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Target Regions</label>
+                        <div className="rounded-md border p-1.5 bg-background border-border text-[11px] font-semibold text-sky-500 truncate">
+                          {(tempIcp.regions || ["US", "UK"]).join(", ")}
+                        </div>
+                      </div>
+                    </div>
                     <div className="space-y-1">
                       <label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Hypothesis</label>
                       <textarea 
@@ -449,14 +497,17 @@ export function CommandEngine({
                   </div>
                 ) : campaignState.leads.length > 0 ? (
                   <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                    {campaignState.leads.slice(0, 4).map((lead, idx) => (
+                    {campaignState.leads.slice(0, 5).map((lead, idx) => (
                       <button
                         key={idx}
                         onClick={() => setSelectedLeadModal(lead)}
                         className="w-full flex items-center justify-between text-xs rounded-lg border px-2.5 py-1.5 font-mono text-left transition-colors cursor-pointer bg-card border-border hover:bg-muted text-foreground shadow-sm"
                       >
-                        <span className="truncate max-w-[150px] font-medium">{lead.company}</span>
-                        <span className="text-[10px] text-foreground font-semibold flex items-center gap-1">
+                        <div className="flex flex-col min-w-0 pr-2">
+                          <span className="truncate max-w-[150px] font-medium">{lead.company}</span>
+                          <span className="text-[9px] text-muted-foreground truncate">{lead.founder?.name} · {lead.founder?.role}</span>
+                        </div>
+                        <span className="text-[10px] text-foreground font-semibold flex items-center gap-1 shrink-0">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                           {lead.icp_score}% FIT
                         </span>

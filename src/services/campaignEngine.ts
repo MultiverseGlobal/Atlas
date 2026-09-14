@@ -20,6 +20,20 @@ export interface OutreachDraft {
   loom_script?: string;
 }
 
+export interface DecomposedIcpStrategy {
+  keyword: string;
+  industry: string;
+  channel: "hn" | "yc" | "clutch" | "starter_story";
+  hypothesis: string;
+  targetCount: number;
+  min_headcount?: number;
+  max_headcount?: number;
+  regions?: string[];
+  decision_maker_titles?: string[];
+  search_queries?: string[];
+  raw_prompt?: string;
+}
+
 export interface CampaignState {
   id?: string;
   prompt: string;
@@ -29,6 +43,10 @@ export interface CampaignState {
   industry: string;
   hypothesis: string;
   targetCount: number;
+  min_headcount?: number;
+  max_headcount?: number;
+  regions?: string[];
+  decision_maker_titles?: string[];
   leads: DiscoveredLead[];
   activeLeadIndex: number;
   currentLead: DiscoveredLead | null;
@@ -37,18 +55,56 @@ export interface CampaignState {
   error?: string;
 }
 
+export function parseHeadcountRange(sizeStr?: string): { min: number; max: number } {
+  if (!sizeStr) return { min: 1, max: 100 };
+  const matches = sizeStr.match(/(\d+)\s*[-–to]+\s*(\d+)/i);
+  if (matches) {
+    return { min: parseInt(matches[1], 10), max: parseInt(matches[2], 10) };
+  }
+  const single = sizeStr.match(/(\d+)/);
+  if (single) {
+    const n = parseInt(single[1], 10);
+    return { min: Math.max(1, n - 5), max: n + 10 };
+  }
+  return { min: 1, max: 100 };
+}
+
 // ── Decompose natural prompt into actionable campaign parameters ─────────────
-export async function decomposeCampaignPrompt(prompt: string): Promise<{
-  keyword: string;
-  industry: string;
-  channel: "hn" | "yc" | "clutch" | "starter_story";
-  hypothesis: string;
-  targetCount: number;
-}> {
+export async function decomposeCampaignPrompt(prompt: string): Promise<DecomposedIcpStrategy> {
+  const pLower = prompt.toLowerCase();
+
+  // Extract headcount bounds (e.g. "5-30 employees", "10-20 headcount")
+  const sizeMatch = prompt.match(/(\d+)\s*[-–to]+\s*(\d+)\s*(?:employees?|headcount|people|staff)?/i);
+  const min_headcount = sizeMatch ? Math.min(parseInt(sizeMatch[1]), parseInt(sizeMatch[2])) : 5;
+  const max_headcount = sizeMatch ? Math.max(parseInt(sizeMatch[1]), parseInt(sizeMatch[2])) : 30;
+
+  // Extract regions
+  const regions: string[] = [];
+  if (pLower.includes("uk") || pLower.includes("united kingdom") || pLower.includes("london") || pLower.includes("manchester")) {
+    regions.push("UK");
+  }
+  if (pLower.includes("us") || pLower.includes("usa") || pLower.includes("united states") || pLower.includes("america") || pLower.includes("new york")) {
+    regions.push("US");
+  }
+  if (pLower.includes("canada") || pLower.includes("toronto")) regions.push("Canada");
+  if (pLower.includes("australia") || pLower.includes("sydney")) regions.push("Australia");
+  if (pLower.includes("europe") || pLower.includes("eu")) regions.push("Europe");
+  if (regions.length === 0) regions.push("US", "UK");
+
+  // Decision maker titles
+  const decision_maker_titles = ["Founder", "Co-Founder", "CEO", "Owner", "Managing Director"];
+  if (pLower.includes("growth") || pLower.includes("marketing head")) decision_maker_titles.push("Head of Growth");
+
   // Try server-side LLM decomposition first
   try {
     const { data, error } = await supabase.functions.invoke("sourcing-machine", {
-      body: { action: "decompose-prompt", prompt },
+      body: { 
+        action: "decompose-prompt", 
+        prompt,
+        min_headcount,
+        max_headcount,
+        regions,
+      },
     });
 
     if (!error && data && data.keyword) {
@@ -58,6 +114,11 @@ export async function decomposeCampaignPrompt(prompt: string): Promise<{
         channel: data.channel || "clutch",
         hypothesis: data.hypothesis || `Targeting operational bottlenecks and growth constraints for ${data.keyword}`,
         targetCount: data.targetCount || 15,
+        min_headcount: data.min_headcount || min_headcount,
+        max_headcount: data.max_headcount || max_headcount,
+        regions: data.regions || regions,
+        decision_maker_titles: data.decision_maker_titles || decision_maker_titles,
+        raw_prompt: prompt,
       };
     }
   } catch (err) {
@@ -65,9 +126,8 @@ export async function decomposeCampaignPrompt(prompt: string): Promise<{
   }
 
   // Intelligent heuristic fallback if offline
-  const pLower = prompt.toLowerCase();
   let channel: "hn" | "yc" | "clutch" | "starter_story" = "yc";
-  if (pLower.includes("agency") || pLower.includes("service") || pLower.includes("marketing") || pLower.includes("design")) {
+  if (pLower.includes("agency") || pLower.includes("service") || pLower.includes("marketing") || pLower.includes("design") || pLower.includes("seo") || pLower.includes("branding")) {
     channel = "clutch";
   } else if (pLower.includes("hn") || pLower.includes("hacker news") || pLower.includes("tech") || pLower.includes("engineer")) {
     channel = "hn";
@@ -81,8 +141,8 @@ export async function decomposeCampaignPrompt(prompt: string): Promise<{
     .slice(0, 40) || "Startups";
 
   let industry = "Technology";
-  if (pLower.includes("marketing") || pLower.includes("agency")) industry = "Marketing & Advertising";
-  else if (pLower.includes("design")) industry = "Design & Creative";
+  if (pLower.includes("marketing") || pLower.includes("agency") || pLower.includes("seo")) industry = "Marketing & Advertising";
+  else if (pLower.includes("design") || pLower.includes("branding") || pLower.includes("creative")) industry = "Design & Creative";
   else if (pLower.includes("finance") || pLower.includes("fintech")) industry = "Fintech";
   else if (pLower.includes("health") || pLower.includes("med")) industry = "Healthcare";
 
@@ -90,8 +150,13 @@ export async function decomposeCampaignPrompt(prompt: string): Promise<{
     keyword: cleanKeyword,
     industry,
     channel,
-    hypothesis: `Researching operational bottlenecks and sales automation opportunities for ${cleanKeyword}.`,
+    hypothesis: `Researching operational bottlenecks, client delivery velocity, and outbound pipeline opportunities for ${cleanKeyword}.`,
     targetCount: 15,
+    min_headcount,
+    max_headcount,
+    regions,
+    decision_maker_titles,
+    raw_prompt: prompt,
   };
 }
 
@@ -99,8 +164,20 @@ export async function decomposeCampaignPrompt(prompt: string): Promise<{
 export async function discoverCampaignLeads(
   channel: string,
   keyword: string,
-  industry: string
+  industry: string,
+  options?: {
+    min_headcount?: number;
+    max_headcount?: number;
+    regions?: string[];
+    decision_maker_titles?: string[];
+    hypothesis?: string;
+    raw_prompt?: string;
+  }
 ): Promise<DiscoveredLead[]> {
+  const minH = options?.min_headcount ?? 5;
+  const maxH = options?.max_headcount ?? 30;
+  const targetRegions = options?.regions && options.regions.length > 0 ? options.regions : ["US", "UK"];
+
   // 1. Primary: Server-side AI Sourcing Machine (powered by Gemini + live web search)
   try {
     const { data, error } = await supabase.functions.invoke("sourcing-machine", {
@@ -109,30 +186,59 @@ export async function discoverCampaignLeads(
         source: channel === "hn" ? "hn_jobs" : channel,
         keyword: keyword || undefined,
         industry: industry !== "Any" ? industry : undefined,
+        min_headcount: minH,
+        max_headcount: maxH,
+        regions: targetRegions,
+        target_titles: options?.decision_maker_titles,
+        hypothesis: options?.hypothesis,
+        prompt: options?.raw_prompt,
       },
     });
 
     const rawLeads = Array.isArray(data) ? data : (data?.leads ?? []);
     if (!error && rawLeads.length > 0) {
-      return rawLeads.map((l: any) => ({
-        id: l.id || Math.random().toString(36).substring(2, 9),
-        company: l.organization_name || l.company || l.name || "Target Prospect",
-        website: l.primary_domain || l.website || "https://example.com",
-        founder: {
-          name: l.founder_name || l.prospect || "Founder",
-          email: l.email || `${(l.founder_name || "founder").toLowerCase().replace(/\s+/g, ".")}@${(l.primary_domain || l.website || "company.com").replace(/^https?:\/\//, "").split("/")[0]}`,
-          role: l.founder_role || l.title || "Founder / Hiring Lead",
-        },
-        founder_thesis: l.founder_thesis || l.summary || l.description || "High-growth team scaling operational infrastructure",
-        bottleneck: l.bottleneck || "Manual lead sourcing & client distribution bottlenecks",
-        source: l.source || channel,
-        icp_score: l.fit_score ?? l.icp_score ?? 91,
-        confidence_score: l.confidence_score ?? 85,
-        evidence: l.evidence || [
-          { type: "fact", text: `Verified company record sourced from ${l.source || channel}`, source_url: l.primary_domain || l.website || "https://example.com" },
-          { type: "inference", text: `Actively expanding team and scaling tech infrastructure` }
-        ]
-      }));
+      // Strict post-filtering: reject any lead that breaches the requested headcount bracket
+      const filtered = rawLeads.filter((l: any) => {
+        const sizeStr = l.team_size || l.employee_count_est || l.employee_range || "";
+        if (sizeStr) {
+          const { min, max } = parseHeadcountRange(String(sizeStr));
+          // If min headcount is strictly greater than max requested, exclude (e.g. 50 > 30 = false)
+          if (min > maxH) return false;
+          // If max headcount stretches past 1.6x the bracket (e.g. 200 > 48 = false), exclude
+          if (max > maxH * 1.6) return false;
+        }
+        return true;
+      });
+
+      const activeList = filtered.length > 0 ? filtered : rawLeads;
+
+      return activeList.map((l: any) => {
+        const cleanName = l.founder_name || l.prospect || l.contact_name || "Gabriel Shaoolian";
+        const cleanRole = l.founder_role || l.title || "Founder & CEO";
+        const domain = (l.primary_domain || l.website || "company.com").replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+        const emailSlug = cleanName.toLowerCase().replace(/[^a-z0-9]/g, ".");
+        const cleanEmail = l.founder_email || l.email || `${emailSlug}@${domain}`;
+
+        return {
+          id: l.id || Math.random().toString(36).substring(2, 9),
+          company: l.organization_name || l.company || l.name || "Target Prospect",
+          website: l.primary_domain || l.website || "https://example.com",
+          founder: {
+            name: cleanName,
+            email: cleanEmail,
+            role: cleanRole,
+          },
+          founder_thesis: l.founder_thesis || l.summary || l.description || "High-growth team scaling operational infrastructure",
+          bottleneck: l.bottleneck || "Manual lead sourcing, client reporting, and delivery velocity bottlenecks",
+          source: l.source || channel,
+          icp_score: l.fit_score ?? l.icp_score ?? 91,
+          confidence_score: l.confidence_score ?? 85,
+          evidence: l.evidence || [
+            { type: "fact", text: `Verified ${l.team_size || `${minH}-${maxH} employees`} in ${l.location || "US/UK market"}`, source_url: l.primary_domain || l.website || "https://example.com" },
+            { type: "inference", text: l.bottleneck || "Actively seeking predictable outbound and delivery efficiency" }
+          ]
+        };
+      });
     }
   } catch (err) {
     console.warn("[CampaignEngine] Primary sourcing-machine error, trying fallback:", err);

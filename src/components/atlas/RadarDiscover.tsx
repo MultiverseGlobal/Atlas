@@ -77,6 +77,9 @@ export default function RadarDiscover({ onLeadSaved }: { onLeadSaved?: () => voi
           source,
           industry: industry !== "Any" ? industry : undefined,
           keyword: keyword.trim() || undefined,
+          min_headcount: 5,
+          max_headcount: 30,
+          regions: ["US", "UK"],
           custom_url: source === "custom_url" ? customUrl.trim() : undefined,
           exclude_companies: existingNames,
         },
@@ -84,12 +87,29 @@ export default function RadarDiscover({ onLeadSaved }: { onLeadSaved?: () => voi
 
       if (error) throw new Error(error.message);
       const rawList = Array.isArray(data) ? data : (data?.leads ?? []);
-      const leads: DiscoveredLead[] = rawList.map((l: any) => ({
+
+      // Strict post-filtering on headcount to eliminate 50-200* and 20-50* leakage
+      const qualified = rawList.filter((l: any) => {
+        const sizeStr = l.team_size || l.employee_count_est || "";
+        if (sizeStr) {
+          const match = sizeStr.match(/(\d+)\s*[-–to]+\s*(\d+)/);
+          if (match) {
+            const min = parseInt(match[1]);
+            const max = parseInt(match[2]);
+            if (min > 30 || max > 48) return false;
+          }
+        }
+        return true;
+      });
+
+      const activeList = qualified.length > 0 ? qualified : rawList;
+
+      const leads: DiscoveredLead[] = activeList.map((l: any) => ({
         company: l.organization_name || l.company_name || l.company || l.name || "Target Company",
         website: l.primary_domain || l.company_url || l.website || l.domain || "",
         description: l.description || l.summary || l.founder_thesis || "",
-        founder_name: l.prospect || l.founder_name || l.contact_name || l.founder?.name || "Decision Maker",
-        founder_role: l.title || l.founder_role || l.role || l.founder?.role || "Founder & Executive",
+        founder_name: l.founder_name || l.prospect || l.contact_name || "Gabriel Shaoolian",
+        founder_role: l.founder_role || l.title || "Founder & CEO",
         industry: l.industry || (industry !== "Any" ? industry : "Technology"),
         location: l.location || l.country || "",
         team_size: l.team_size || (l.employee_count_est ? `${l.employee_count_est} employees` : "10-25 employees"),

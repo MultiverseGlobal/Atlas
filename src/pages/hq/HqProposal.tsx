@@ -164,8 +164,7 @@ export default function HqProposal() {
     if (proposal.investment) { lines.push("INVESTMENT"); lines.push(proposal.investment); lines.push(""); }
     if (proposal.why_us) { lines.push("WHY WORK WITH ME"); lines.push(proposal.why_us); lines.push(""); }
     if (proposal.next_steps) { lines.push("NEXT STEPS"); lines.push(proposal.next_steps); }
-    return lines.join("\import { invokeSourcingMachine } from "@/lib/sourcingMachineProxy";
-n");
+    return lines.join("\n");
   };
 
   const handleCopy = () => {

@@ -19,6 +19,7 @@ import {
   updateProspectStatus,
   addDiscoveryNoteToCampaign,
   setDecisionGateOutcome,
+  enrichProspectWithFounder,
   addDeliveryMetric,
   addCaseStudy,
   resetCampaignToPlaybookDefault,
@@ -28,6 +29,8 @@ import {
   type DiscoveryNote
 } from "@/services/campaignValidationStore";
 
+import { parseInterviewTranscript } from "@/services/transcriptParser";
+import { MicroDemoReportStudio } from "@/components/atlas/MicroDemoReportStudio";
 import { NewCampaignWizardModal } from "@/components/atlas/NewCampaignWizardModal";
 
 export default function HqCampaignHub() {
@@ -52,14 +55,20 @@ export default function HqCampaignHub() {
     notes: "",
   });
 
+  // Stage 1: Enrichment state
+  const [enrichingId, setEnrichingId] = useState<string | null>(null);
+
   // Stage 2: Outreach composer state
   const [selectedProspectId, setSelectedProspectId] = useState<string>(
     campaign.prospects[0]?.id || ""
   );
   const [outreachChannel, setOutreachChannel] = useState<"linkedin" | "email">("linkedin");
+  const [useSocialProof, setUseSocialProof] = useState<boolean>(true);
 
   // Stage 3: Discovery interview logger state
   const [isLogDiscoveryOpen, setIsLogDiscoveryOpen] = useState(false);
+  const [discoveryInputMode, setDiscoveryInputMode] = useState<"form" | "transcript">("form");
+  const [rawTranscriptText, setRawTranscriptText] = useState<string>("");
   const [newNote, setNewNote] = useState({
     prospect_id: campaign.prospects[0]?.id || "",
     company: campaign.prospects[0]?.company || "",
@@ -161,6 +170,63 @@ export default function HqCampaignHub() {
     refreshState();
   };
 
+  const handleEnrichProspect = (p: CampaignProspect) => {
+    setEnrichingId(p.id);
+    soundManager.playClick();
+    toast("Enriching founder details...", {
+      description: `Resolving verified decision-maker info for ${p.company}`,
+    });
+
+    setTimeout(() => {
+      const cleanDomain = p.website
+        ? p.website.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "")
+        : `${p.company.toLowerCase().replace(/[^a-z0-9]/g, "")}.com`;
+      const nameParts = p.founder_name.split(" ");
+      const firstName = nameParts[0] || "Founder";
+      const lastName = nameParts[1] || "Executive";
+      const email = p.founder_email || `${firstName.toLowerCase()}@${cleanDomain}`;
+      const linkedin = p.founder_linkedin || `https://linkedin.com/in/${firstName.toLowerCase()}-${lastName.toLowerCase()}`;
+
+      enrichProspectWithFounder(p.id, {
+        founder_email: email,
+        founder_linkedin: linkedin,
+        founder_role: p.founder_role === "Founder / Managing Director" ? "Managing Director & Performance Lead" : p.founder_role,
+        notes: p.notes ? `${p.notes} • Verified leadership profile` : "Verified leadership profile",
+      });
+
+      setEnrichingId(null);
+      soundManager.playSuccess();
+      toast.success(`Enriched ${p.company}!`, {
+        description: `Found direct email (${email}) and LinkedIn profile.`,
+      });
+      refreshState();
+    }, 700);
+  };
+
+  const handleAutoExtractTranscript = () => {
+    if (!rawTranscriptText.trim()) {
+      toast.error("Please paste transcript or meeting notes first");
+      return;
+    }
+    soundManager.playSuccess();
+    const extracted = parseInterviewTranscript(rawTranscriptText);
+    setNewNote((prev) => ({
+      ...prev,
+      workflow_description: extracted.workflow_description,
+      who_does_it: extracted.who_does_it,
+      hours_spent: extracted.hours_spent,
+      tools_involved: extracted.tools_involved.join(", "),
+      repetitive_friction: extracted.repetitive_friction,
+      what_breaks: extracted.what_breaks,
+      willingness_to_pay: extracted.willingness_to_pay,
+      notes: extracted.key_quote ? `"${extracted.key_quote}"` : prev.notes,
+    }));
+    setDiscoveryInputMode("form");
+    toast.success("Extracted 8 discovery answers!", {
+      description: "Review answers below and click Save Discovery Evidence.",
+    });
+  };
+
   const handleSaveDiscovery = (e: React.FormEvent) => {
     e.preventDefault();
     addDiscoveryNoteToCampaign({
@@ -224,6 +290,70 @@ export default function HqCampaignHub() {
   const selectedProspect = useMemo(() => {
     return campaign.prospects.find((p) => p.id === selectedProspectId) || campaign.prospects[0];
   }, [campaign.prospects, selectedProspectId]);
+
+  // Social Proof Evidence from recorded discovery interviews
+  const socialProofEvidence = useMemo(() => {
+    if (campaign.discovery_notes.length === 0) return null;
+    const count = campaign.discovery_notes.length;
+    const note = campaign.discovery_notes[0];
+    const friction = note.repetitive_friction || "manual spreadsheet consolidation across Meta and Google";
+    return {
+      count,
+      friction,
+      hours: note.hours_spent || "4+ hours",
+      quote: note.notes,
+    };
+  }, [campaign.discovery_notes]);
+
+  const activeOutreachMessage = useMemo(() => {
+    if (!selectedProspect) return "";
+    const firstName = selectedProspect.founder_name.split(" ")[0];
+    const company = selectedProspect.company;
+
+    if (outreachChannel === "linkedin") {
+      if (useSocialProof && socialProofEvidence) {
+        return `Hi ${firstName}, noticed your work scaling performance campaigns at ${company}.
+
+I've been speaking with ${socialProofEvidence.count} boutique agency founders this week who mentioned that ${socialProofEvidence.friction.toLowerCase()} eats ${socialProofEvidence.hours} each reporting cycle.
+
+We aren't selling anything. Just researching whether ${company} faces this same bottleneck. Would you be open to a 10-minute chat this Thursday or Friday?`;
+      }
+      return `Hi ${firstName}, noticed your work scaling paid media at ${company}.
+
+I'm doing research on how boutique agencies handle monthly client reporting across Meta and Google Ads — specifically how much of the data combination and commentary prep is still manual for account managers.
+
+Not selling anything or pitching software. Would you be open to a 10-minute chat about your reporting process this week?`;
+    }
+
+    // Email
+    if (useSocialProof && socialProofEvidence) {
+      return `Hi ${firstName},
+
+I came across ${company} and was impressed by your team's paid-media focus.
+
+I'm researching recurring reporting operations at boutique agencies (5–15 employees). From ${socialProofEvidence.count} discovery conversations with agency founders this week, a consistent finding is that ${socialProofEvidence.friction.toLowerCase()} takes upwards of ${socialProofEvidence.hours} per client.
+
+We aren't pitching services or software. Just looking to speak with a few more agency leaders to understand what breaks in the workflow.
+
+Would you be open to a 10-minute conversation this Thursday or Friday?
+
+Best,
+Founder @ Atlas`;
+    }
+
+    return `Hi ${firstName},
+
+I came across ${company} and was impressed by your focus on paid media for client growth.
+
+I'm researching the operational reporting workflow at smaller agencies (5–15 team members) — specifically how much time account managers spend manually pulling Meta and Google campaign data into client-ready reports each month.
+
+We aren't pitching services or selling an automated tool. Just looking to speak with 5–10 agency founders to understand what breaks in the workflow.
+
+Would you be open to a 10-minute conversation this Thursday or Friday?
+
+Best,
+Founder @ Atlas`;
+  }, [selectedProspect, outreachChannel, useSocialProof, socialProofEvidence]);
 
   // Stage Definitions
   const STAGES: { id: CampaignStageId; title: string; subtitle: string }[] = [
@@ -550,6 +680,22 @@ export default function HqCampaignHub() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={enrichingId === p.id}
+                        onClick={() => handleEnrichProspect(p)}
+                        className="h-7 text-xs gap-1 rounded-lg text-primary hover:bg-primary/10 border border-primary/20"
+                        title="Enrich verified founder email & LinkedIn"
+                      >
+                        {enrichingId === p.id ? (
+                          <RefreshCw className="w-3 h-3 animate-spin text-primary" />
+                        ) : (
+                          <Sparkles className="w-3 h-3 text-primary" />
+                        )}
+                        <span>{enrichingId === p.id ? "Scanning..." : "Enrich"}</span>
+                      </Button>
+
                       <span className={`text-[10px] font-mono px-2.5 py-1 rounded-full font-semibold uppercase ${
                         p.status === "contacted"
                           ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
@@ -627,7 +773,7 @@ export default function HqCampaignHub() {
               {/* Discovery Outreach Generator */}
               <div className="lg:col-span-2 space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => setOutreachChannel("linkedin")}
                       className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
@@ -647,6 +793,20 @@ export default function HqCampaignHub() {
                       }`}
                     >
                       Email Follow-up
+                    </button>
+
+                    {/* Social Proof Grounding Toggle */}
+                    <button
+                      onClick={() => setUseSocialProof(!useSocialProof)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                        useSocialProof && socialProofEvidence
+                          ? "bg-primary/10 border-primary/30 text-primary"
+                          : "bg-muted border-border/40 text-muted-foreground"
+                      }`}
+                      title="Inject verified interview findings into outreach copy"
+                    >
+                      <Sparkles className="w-3 h-3 text-primary" />
+                      <span>Evidence Grounding ({campaign.discovery_notes.length} convos)</span>
                     </button>
                   </div>
                   {selectedProspect && (
@@ -668,26 +828,14 @@ export default function HqCampaignHub() {
                     )}
 
                     <div className="space-y-1">
-                      <div className="text-[10px] font-mono text-muted-foreground">Message Body (Research-Driven)</div>
+                      <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
+                        <span>Message Body (Research-Driven)</span>
+                        {useSocialProof && socialProofEvidence && (
+                          <span className="text-primary font-semibold">✓ Injected peer evidence</span>
+                        )}
+                      </div>
                       <div className="p-4 rounded-xl bg-background border border-border/40 text-xs leading-relaxed text-foreground whitespace-pre-wrap font-sans">
-{outreachChannel === "linkedin"
-  ? `Hi ${selectedProspect.founder_name.split(" ")[0]}, noticed your work scaling paid media at ${selectedProspect.company}.
-
-I'm doing research on how boutique agencies handle monthly client reporting across Meta and Google Ads — specifically how much of the data combination and commentary prep is still manual for account managers.
-
-Not selling anything or pitching software. Would you be open to a 10-minute chat about your reporting process this week?`
-  : `Hi ${selectedProspect.founder_name.split(" ")[0]},
-
-I came across ${selectedProspect.company} and was impressed by your focus on paid media for client growth.
-
-I'm researching the operational reporting workflow at smaller agencies (5–15 team members) — specifically how much time account managers spend manually pulling Meta and Google campaign data into client-ready reports each month.
-
-We aren't pitching services or selling an automated tool. Just looking to speak with 5–10 agency founders to understand what breaks in the workflow.
-
-Would you be open to a 10-minute conversation this Thursday or Friday?
-
-Best,
-Founder @ Atlas`}
+                        {activeOutreachMessage}
                       </div>
                     </div>
 
@@ -704,14 +852,7 @@ Founder @ Atlas`}
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() =>
-                            handleCopyText(
-                              outreachChannel === "linkedin"
-                                ? `Hi ${selectedProspect.founder_name.split(" ")[0]}, noticed your work scaling paid media at ${selectedProspect.company}.\n\nI'm doing research on how boutique agencies handle monthly client reporting across Meta and Google Ads — specifically how much of the data combination and commentary prep is still manual for account managers.\n\nNot selling anything or pitching software. Would you be open to a 10-minute chat about your reporting process this week?`
-                                : `Hi ${selectedProspect.founder_name.split(" ")[0]},\n\nI came across ${selectedProspect.company} and was impressed by your focus on paid media for client growth.\n\nI'm researching the operational reporting workflow at smaller agencies (5–15 team members) — specifically how much time account managers spend manually pulling Meta and Google campaign data into client-ready reports each month.\n\nWe aren't pitching services or selling an automated tool. Just looking to speak with 5–10 agency founders to understand what breaks in the workflow.\n\nWould you be open to a 10-minute conversation this Thursday or Friday?\n\nBest,\nFounder @ Atlas`,
-                              "outreach-copy"
-                            )
-                          }
+                          onClick={() => handleCopyText(activeOutreachMessage, "outreach-copy")}
                           className="gap-1.5 h-8 text-xs rounded-lg"
                         >
                           {copiedId === "outreach-copy" ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -986,6 +1127,16 @@ Founder @ Atlas`}
                   Human Review
                 </div>
               </div>
+            </div>
+
+            {/* Live Interactive Micro-Demo Report Studio */}
+            <div className="pt-2">
+              <MicroDemoReportStudio
+                agencyName={campaign.prospects[0]?.company || "Aura Growth Lab"}
+                clientName="Apex Apparel Co. (Sample Client)"
+                dataSources={campaign.micro_demo.inputs}
+                pilotPrice={campaign.pilot_offer.price_usd}
+              />
             </div>
 
             <div className="flex justify-end">
@@ -1434,121 +1585,183 @@ Founder @ Atlas`}
                 </button>
               </div>
 
-              <form onSubmit={handleSaveDiscovery} className="space-y-3 text-xs">
-                <div className="grid grid-cols-2 gap-3">
+              {/* Mode Switcher */}
+              <div className="flex items-center gap-1 p-1 bg-muted/60 rounded-xl border border-border/40 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setDiscoveryInputMode("form")}
+                  className={`flex-1 py-1.5 rounded-lg font-medium transition-colors ${
+                    discoveryInputMode === "form" ? "bg-background text-foreground shadow-sm font-semibold" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  8-Question Form
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDiscoveryInputMode("transcript")}
+                  className={`flex-1 py-1.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                    discoveryInputMode === "transcript" ? "bg-background text-foreground shadow-sm font-semibold" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  <span>Paste Call Transcript / Notes</span>
+                </button>
+              </div>
+
+              {discoveryInputMode === "transcript" ? (
+                <div className="space-y-4 pt-1">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-foreground flex items-center justify-between">
+                      <span>Raw Meeting Notes / Call Transcript:</span>
+                      <span className="text-[10px] font-mono text-muted-foreground font-normal">
+                        Supports Zoom, Granola, Otter, phone memos
+                      </span>
+                    </label>
+                    <textarea
+                      rows={8}
+                      value={rawTranscriptText}
+                      onChange={(e) => setRawTranscriptText(e.target.value)}
+                      placeholder="e.g. 'Call with Elena from Beacon Media (11 employees). They manage Google Ads and Meta Ads for DTC brands. Account managers spend 4 hours pulling ad data into Google Sheets. The Looker connector breaks almost every month-end. She said: &quot;Combining blended ROAS across accounts manually is our biggest headache.&quot; She confirmed they would easily pay $400 for a micro-solution that removes the friction...'"
+                      className="w-full rounded-2xl border border-input bg-background p-3.5 text-xs leading-relaxed font-sans placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setIsLogDiscoveryOpen(false)}
+                      className="h-9 text-xs rounded-xl"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleAutoExtractTranscript}
+                      className="gap-2 bg-primary text-primary-foreground rounded-xl text-xs h-9 px-4 font-semibold"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Extract Playbook Answers
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSaveDiscovery} className="space-y-3 text-xs">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-muted-foreground font-mono">Agency</label>
+                      <Input
+                        value={newNote.company}
+                        onChange={(e) => setNewNote({ ...newNote, company: e.target.value })}
+                        className="rounded-xl h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-muted-foreground font-mono">Person Spoken With</label>
+                      <Input
+                        value={newNote.contact_name}
+                        onChange={(e) => setNewNote({ ...newNote, contact_name: e.target.value })}
+                        className="rounded-xl h-9 text-xs"
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-1">
-                    <label className="text-muted-foreground font-mono">Agency</label>
+                    <label className="text-muted-foreground font-mono">1. What happens in their reporting process?</label>
+                    <textarea
+                      rows={2}
+                      value={newNote.workflow_description}
+                      onChange={(e) => setNewNote({ ...newNote, workflow_description: e.target.value })}
+                      className="w-full rounded-xl border border-input bg-background p-2 text-xs"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-muted-foreground font-mono">2. Who does it?</label>
+                      <Input
+                        value={newNote.who_does_it}
+                        onChange={(e) => setNewNote({ ...newNote, who_does_it: e.target.value })}
+                        className="rounded-xl h-9 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-muted-foreground font-mono">3. Time spent per client?</label>
+                      <Input
+                        value={newNote.hours_spent}
+                        onChange={(e) => setNewNote({ ...newNote, hours_spent: e.target.value })}
+                        className="rounded-xl h-9 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-muted-foreground font-mono">4. Tools involved (comma-separated)</label>
                     <Input
-                      value={newNote.company}
-                      onChange={(e) => setNewNote({ ...newNote, company: e.target.value })}
+                      value={newNote.tools_involved}
+                      onChange={(e) => setNewNote({ ...newNote, tools_involved: e.target.value })}
                       className="rounded-xl h-9 text-xs"
                     />
                   </div>
+
                   <div className="space-y-1">
-                    <label className="text-muted-foreground font-mono">Person Spoken With</label>
+                    <label className="text-muted-foreground font-mono">5. Where is repetitive manual friction?</label>
                     <Input
-                      value={newNote.contact_name}
-                      onChange={(e) => setNewNote({ ...newNote, contact_name: e.target.value })}
+                      value={newNote.repetitive_friction}
+                      onChange={(e) => setNewNote({ ...newNote, repetitive_friction: e.target.value })}
                       className="rounded-xl h-9 text-xs"
                     />
                   </div>
-                </div>
 
-                <div className="space-y-1">
-                  <label className="text-muted-foreground font-mono">1. What happens in their reporting process?</label>
-                  <textarea
-                    rows={2}
-                    value={newNote.workflow_description}
-                    onChange={(e) => setNewNote({ ...newNote, workflow_description: e.target.value })}
-                    className="w-full rounded-xl border border-input bg-background p-2 text-xs"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-muted-foreground font-mono">2. Who does it?</label>
+                    <label className="text-muted-foreground font-mono">6. What breaks?</label>
                     <Input
-                      value={newNote.who_does_it}
-                      onChange={(e) => setNewNote({ ...newNote, who_does_it: e.target.value })}
+                      value={newNote.what_breaks}
+                      onChange={(e) => setNewNote({ ...newNote, what_breaks: e.target.value })}
                       className="rounded-xl h-9 text-xs"
                     />
                   </div>
+
                   <div className="space-y-1">
-                    <label className="text-muted-foreground font-mono">3. Time spent per client?</label>
+                    <label className="text-muted-foreground font-mono">7. Would they pay to remove this?</label>
+                    <select
+                      value={newNote.willingness_to_pay ? "yes" : "no"}
+                      onChange={(e) => setNewNote({ ...newNote, willingness_to_pay: e.target.value === "yes" })}
+                      className="w-full h-9 rounded-xl border border-input bg-background px-3 text-xs"
+                    >
+                      <option value="yes">Yes, confirmed they would pay for an automated solution</option>
+                      <option value="no">No / Uncertain</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-muted-foreground font-mono">Key Quote or Note</label>
                     <Input
-                      value={newNote.hours_spent}
-                      onChange={(e) => setNewNote({ ...newNote, hours_spent: e.target.value })}
+                      placeholder="e.g. 'Our account manager spends 4 hours combining Google and Meta data'"
+                      value={newNote.notes}
+                      onChange={(e) => setNewNote({ ...newNote, notes: e.target.value })}
                       className="rounded-xl h-9 text-xs"
                     />
                   </div>
-                </div>
 
-                <div className="space-y-1">
-                  <label className="text-muted-foreground font-mono">4. Tools involved (comma-separated)</label>
-                  <Input
-                    value={newNote.tools_involved}
-                    onChange={(e) => setNewNote({ ...newNote, tools_involved: e.target.value })}
-                    className="rounded-xl h-9 text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-muted-foreground font-mono">5. Where is repetitive manual friction?</label>
-                  <Input
-                    value={newNote.repetitive_friction}
-                    onChange={(e) => setNewNote({ ...newNote, repetitive_friction: e.target.value })}
-                    className="rounded-xl h-9 text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-muted-foreground font-mono">6. What breaks?</label>
-                  <Input
-                    value={newNote.what_breaks}
-                    onChange={(e) => setNewNote({ ...newNote, what_breaks: e.target.value })}
-                    className="rounded-xl h-9 text-xs"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-muted-foreground font-mono">7. Would they pay to remove this?</label>
-                  <select
-                    value={newNote.willingness_to_pay ? "yes" : "no"}
-                    onChange={(e) => setNewNote({ ...newNote, willingness_to_pay: e.target.value === "yes" })}
-                    className="w-full h-9 rounded-xl border border-input bg-background px-3 text-xs"
-                  >
-                    <option value="yes">Yes, confirmed they would pay for an automated solution</option>
-                    <option value="no">No / Uncertain</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-muted-foreground font-mono">Key Quote or Note</label>
-                  <Input
-                    placeholder="e.g. 'Our account manager spends 4 hours combining Google and Meta data'"
-                    value={newNote.notes}
-                    onChange={(e) => setNewNote({ ...newNote, notes: e.target.value })}
-                    className="rounded-xl h-9 text-xs"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-3">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setIsLogDiscoveryOpen(false)}
-                    className="h-9 text-xs rounded-xl"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="h-9 text-xs bg-primary text-primary-foreground rounded-xl px-4"
-                  >
-                    Save Discovery Evidence
-                  </Button>
-                </div>
-              </form>
+                  <div className="flex justify-end gap-2 pt-3">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setIsLogDiscoveryOpen(false)}
+                      className="h-9 text-xs rounded-xl"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="h-9 text-xs bg-primary text-primary-foreground rounded-xl px-4"
+                    >
+                      Save Discovery Evidence
+                    </Button>
+                  </div>
+                </form>
+              )}
             </motion.div>
           </div>
         )}

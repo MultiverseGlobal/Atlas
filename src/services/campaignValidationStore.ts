@@ -305,6 +305,24 @@ export function updateProspectStatus(
   return c;
 }
 
+export function enrichProspectWithFounder(
+  prospectId: string,
+  enrichment: Partial<CampaignProspect>
+): ValidationCampaign {
+  const c = getActiveCampaign();
+  const p = c.prospects.find((x) => x.id === prospectId);
+  if (p) {
+    if (enrichment.founder_name) p.founder_name = enrichment.founder_name;
+    if (enrichment.founder_role) p.founder_role = enrichment.founder_role;
+    if (enrichment.founder_email) p.founder_email = enrichment.founder_email;
+    if (enrichment.founder_linkedin) p.founder_linkedin = enrichment.founder_linkedin;
+    if (enrichment.team_size) p.team_size = enrichment.team_size;
+    if (enrichment.notes) p.notes = enrichment.notes;
+    saveActiveCampaign(c);
+  }
+  return c;
+}
+
 export function addDiscoveryNoteToCampaign(
   note: Omit<DiscoveryNote, "id" | "created_at">
 ): ValidationCampaign {

@@ -267,13 +267,13 @@ export default function RadarDiscover({ onLeadSaved }: { onLeadSaved?: () => voi
                     onClick={() => setSource(s.id)}
                     className={`rounded-lg border p-3 text-left transition-all ${
                       source === s.id
-                        ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-border/60 bg-background hover:border-primary/30 hover:bg-muted/20"
+                        ? "border-primary bg-primary/15 text-foreground ring-1 ring-primary/30 shadow-sm"
+                        : "border-border/60 bg-card/60 hover:border-border hover:bg-card text-foreground"
                     }`}
                   >
                     <div className="text-xl mb-1">{s.icon}</div>
-                    <div className="text-xs font-semibold">{s.label}</div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{s.description}</div>
+                    <div className="text-xs font-semibold text-foreground">{s.label}</div>
+                    <div className={`text-[10px] mt-0.5 leading-tight ${source === s.id ? "text-foreground/80" : "text-muted-foreground"}`}>{s.description}</div>
                   </button>
                 ))}
               </div>

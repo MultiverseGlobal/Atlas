@@ -8,7 +8,6 @@ import {
   Compass, Handshake, Film, User, Bot, Send
 } from "lucide-react";
 import { AtlasIcon } from "@/components/atlas/EcosystemIcons";
-import { EcosystemSwitcher } from "@/components/atlas/EcosystemSwitcher";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,10 +96,6 @@ export function FloatingNav({ onNewLead }: FloatingNavProps) {
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-
-        <div className="flex items-center px-1 py-0.5 rounded-xl bg-card/80 border border-border/50 shadow-sm backdrop-blur-md">
-          <EcosystemSwitcher align="left" isDark={theme === "dark"} />
-        </div>
       </motion.div>
 
 

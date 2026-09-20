@@ -16,18 +16,14 @@ import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 
 const Onboarding = React.lazy(() => import("./pages/Onboarding"));
-const FounderHome = React.lazy(() => import("./pages/FounderHome"));
 const ObjectivesStudio = React.lazy(() => import("./pages/hq/ObjectivesStudio"));
 const HqRadar = React.lazy(() => import("./pages/hq/HqRadar"));
 const HqLeadDetail = React.lazy(() => import("./pages/hq/HqLeadDetail"));
 const HqProposal = React.lazy(() => import("./pages/hq/HqProposal"));
-const CommandFeed = React.lazy(() => import("./pages/hq/HqToday"));
-const DailyBriefing = React.lazy(() => import("./pages/hq/HqToday"));
 const HqSettings = React.lazy(() => import("./pages/hq/HqSettings"));
 const HqTrustCenter = React.lazy(() => import("./pages/hq/HqTrustCenter"));
 const HqInsights = React.lazy(() => import("./pages/hq/HqInsights"));
 const HqOutreach = React.lazy(() => import("./pages/hq/HqOutreach"));
-
 const HqToday = React.lazy(() => import("./pages/hq/HqToday"));
 const HqPartnerships = React.lazy(() => import("./pages/hq/HqPartnerships"));
 const HqTeam = React.lazy(() => import("./pages/hq/HqTeam"));
@@ -35,6 +31,7 @@ const HqReport = React.lazy(() => import("./pages/hq/HqReport"));
 const HqMediaJobs = React.lazy(() => import("./pages/hq/HqMediaJobs"));
 const Privacy = React.lazy(() => import("./pages/Privacy"));
 const PublicProfile = React.lazy(() => import("./pages/PublicProfile"));
+
 
 const SovereignSyncWrapper = ({ children }: { children: React.ReactNode }) => {
   useSovereignSync();
@@ -58,7 +55,7 @@ const App = () => (
               <Routes>
                 {/* ── Sovereign App Shell (Atlas V1 Core Surfaces & Extended) ─ */}
                 <Route element={<HqShell />}>
-                  <Route path="/" element={<FounderHome />} />
+                  <Route path="/" element={<Navigate to="/hq/radar" replace />} />
                   <Route path="/briefing" element={<HqToday />} />
                   <Route path="/objectives" element={<ObjectivesStudio />} />
                   <Route path="/outreach" element={<HqOutreach />} />

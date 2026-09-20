@@ -377,3 +377,81 @@ export function resetCampaignToPlaybookDefault(): ValidationCampaign {
   window.dispatchEvent(new CustomEvent("atlas_campaign_updated", { detail: DEFAULT_CAMPAIGN }));
   return DEFAULT_CAMPAIGN;
 }
+
+export interface CreateCampaignParams {
+  name: string;
+  hypothesis: string;
+  industry: string;
+  headcount: string;
+  workflow: string;
+  geography?: string;
+  data_sources: string[];
+  pilot_price_usd?: number;
+  pilot_turnaround_days?: number;
+  discovery_target?: number;
+  pilot_target?: number;
+}
+
+export function createCustomValidationCampaign(params: CreateCampaignParams): ValidationCampaign {
+  const price = params.pilot_price_usd || 400;
+  const newCampaign: ValidationCampaign = {
+    id: `campaign-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    name: params.name || "Validation Campaign",
+    type: "validation_to_first_client",
+    hypothesis: params.hypothesis,
+    target_icp: {
+      industry: params.industry,
+      headcount: params.headcount,
+      workflow: params.workflow,
+      geography: params.geography || "US, UK & Remote",
+    },
+    active_stage: 1,
+    scoreboard: {
+      agencies_researched: { current: 0, target: 40 },
+      personalised_outreaches: { current: 0, target: 25 },
+      discovery_conversations: { current: 0, target: params.discovery_target || 8 },
+      qualified_conversations: { current: 0, target: 10 },
+      sales_calls: { current: 0, target: 4 },
+      paid_pilots: { current: 0, target: params.pilot_target || 2 },
+      revenue_usd: { current: 0, target: (params.pilot_target || 2) * price, unit: "$" },
+      case_studies: { current: 0, target: 1 },
+    },
+    sprint_milestone: {
+      target_agencies: 10,
+      target_contacted: 5,
+    },
+    prospects: [],
+    discovery_notes: [],
+    decision_gate: {
+      status: "pending",
+      notes: `Reviewing after ${params.discovery_target || 5}–10 discovery conversations are logged.`,
+    },
+    micro_demo: {
+      status: "not_started",
+      inputs: params.data_sources.length > 0 ? params.data_sources : ["Client Data Source"],
+      workflow_steps: [
+        `Ingest raw data from ${params.data_sources.join(" + ") || "primary tools"}`,
+        "Structure into clean unified format",
+        "Generate draft report or deliverable",
+        "Human review & approval checkpoint",
+        "Client delivery",
+      ],
+      output_format: "Verified executive deliverable",
+    },
+    pilot_offer: {
+      scope_description: `One workflow, one format, ${params.data_sources.length || 1} data source(s), with human approval step.`,
+      price_usd: price,
+      turnaround_days: params.pilot_turnaround_days || 8,
+      data_sources: params.data_sources,
+      human_approval: true,
+    },
+    delivery_metrics: [],
+    case_studies: [],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  saveActiveCampaign(newCampaign);
+  return newCampaign;
+}
+

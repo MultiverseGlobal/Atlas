@@ -10,6 +10,7 @@ import {
   addDeliveryMetric,
   addCaseStudy,
   resetCampaignToPlaybookDefault,
+  createCustomValidationCampaign,
 } from "../services/campaignValidationStore";
 
 describe("Validation Campaign Engine Store", () => {
@@ -103,5 +104,24 @@ describe("Validation Campaign Engine Store", () => {
     expect(updated.delivery_metrics.length).toBe(1);
     expect(updated.delivery_metrics[0].hours_before).toBe(4.0);
     expect(updated.delivery_metrics[0].hours_after).toBe(0.8);
+  });
+
+  it("creates custom validation campaign from prompt parameters", () => {
+    const custom = createCustomValidationCampaign({
+      name: "E-Commerce Retention Pilot",
+      hypothesis: "Validate whether DTC brands struggle with retention flows",
+      industry: "DTC E-Commerce",
+      headcount: "5–20 employees",
+      workflow: "Klaviyo retention flows",
+      data_sources: ["Klaviyo", "Shopify"],
+      pilot_price_usd: 500,
+      discovery_target: 10,
+    });
+
+    expect(custom.name).toBe("E-Commerce Retention Pilot");
+    expect(custom.pilot_offer.price_usd).toBe(500);
+    expect(custom.scoreboard.discovery_conversations.target).toBe(10);
+    expect(custom.micro_demo.inputs).toEqual(["Klaviyo", "Shopify"]);
+    expect(getActiveCampaign().id).toBe(custom.id);
   });
 });

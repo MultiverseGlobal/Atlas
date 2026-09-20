@@ -28,10 +28,15 @@ import {
   type DiscoveryNote
 } from "@/services/campaignValidationStore";
 
+import { NewCampaignWizardModal } from "@/components/atlas/NewCampaignWizardModal";
+
 export default function HqCampaignHub() {
   const [campaign, setCampaign] = useState<ValidationCampaign>(getActiveCampaign);
   const [activeStage, setActiveStage] = useState<CampaignStageId>(campaign.active_stage);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // New campaign AI prompt wizard state
+  const [isNewCampaignWizardOpen, setIsNewCampaignWizardOpen] = useState(false);
 
   // Stage 1: Quick add agency modal
   const [isAddAgencyOpen, setIsAddAgencyOpen] = useState(false);
@@ -261,25 +266,33 @@ export default function HqCampaignHub() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <Button
-              onClick={() => setIsAddAgencyOpen(true)}
-              className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl shadow-sm h-10 px-4 text-xs font-semibold"
+              onClick={() => setIsNewCampaignWizardOpen(true)}
+              className="gap-2 bg-gradient-to-r from-primary to-primary/85 text-primary-foreground hover:opacity-95 rounded-xl shadow-sm h-10 px-4 text-xs font-semibold"
             >
-              <Plus className="w-4 h-4" />
-              <span>Add Qualified Agency</span>
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>+ New Campaign (AI Wizard)</span>
             </Button>
             <Button
+              onClick={() => setIsAddAgencyOpen(true)}
               variant="outline"
+              className="gap-2 border-border/60 hover:bg-muted text-foreground rounded-xl shadow-sm h-10 px-4 text-xs font-semibold"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Agency</span>
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => {
                 resetCampaignToPlaybookDefault();
                 refreshState();
                 toast.success("Reset to Playbook Default");
               }}
-              className="gap-2 rounded-xl text-xs h-10 border-border/60 text-muted-foreground hover:text-foreground"
+              className="gap-1.5 rounded-xl text-xs h-10 text-muted-foreground hover:text-foreground"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              <span>Reset Playbook</span>
+              <span>Reset</span>
             </Button>
           </div>
         </div>
@@ -1540,6 +1553,17 @@ Founder @ Atlas`}
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── Modal: Start New Campaign (AI Wizard) ────────────────────── */}
+      <NewCampaignWizardModal
+        isOpen={isNewCampaignWizardOpen}
+        onClose={() => setIsNewCampaignWizardOpen(false)}
+        onCampaignCreated={(created) => {
+          setCampaign(created);
+          setActiveStage(1);
+          refreshState();
+        }}
+      />
     </div>
   );
 }

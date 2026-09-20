@@ -1,0 +1,379 @@
+// ── Campaign Validation Store ──────────────────────────────────────────────
+// Purpose: Manages the 9-stage Validation-to-First-Client Campaign engine,
+// tracking scoreboard targets, discovery notes, decision gates, and delivery metrics.
+
+export type CampaignStageId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+
+export interface ScoreboardMetric {
+  current: number;
+  target: number;
+  unit?: string;
+}
+
+export interface CampaignScoreboard {
+  agencies_researched: ScoreboardMetric;
+  personalised_outreaches: ScoreboardMetric;
+  discovery_conversations: ScoreboardMetric;
+  qualified_conversations: ScoreboardMetric;
+  sales_calls: ScoreboardMetric;
+  paid_pilots: ScoreboardMetric;
+  revenue_usd: ScoreboardMetric;
+  case_studies: ScoreboardMetric;
+}
+
+export interface SprintMilestone {
+  target_agencies: number;
+  target_contacted: number;
+}
+
+export interface CampaignProspect {
+  id: string;
+  company: string;
+  website: string;
+  founder_name: string;
+  founder_role: string;
+  founder_email?: string;
+  founder_linkedin?: string;
+  team_size?: string;
+  source: string;
+  status: "researched" | "contacted" | "discovery" | "demo" | "pilot" | "customer" | "passed";
+  notes?: string;
+  created_at: string;
+  contacted_at?: string;
+}
+
+export interface DiscoveryNote {
+  id: string;
+  prospect_id?: string;
+  company: string;
+  contact_name: string;
+  workflow_description: string;
+  who_does_it: string;
+  hours_spent: string;
+  tools_involved: string[];
+  repetitive_friction: string;
+  what_breaks: string;
+  willingness_to_pay: boolean;
+  notes?: string;
+  created_at: string;
+}
+
+export interface DecisionGate {
+  status: "pending" | "strong_repetition" | "different_pain" | "kill";
+  notes: string;
+  decided_at?: string;
+}
+
+export interface MicroDemoSpec {
+  status: "not_started" | "building" | "ready";
+  inputs: string[];
+  workflow_steps: string[];
+  output_format: string;
+  notes?: string;
+}
+
+export interface PilotOffer {
+  scope_description: string;
+  price_usd: number;
+  turnaround_days: number;
+  data_sources: string[];
+  human_approval: boolean;
+}
+
+export interface DeliveryMetric {
+  id: string;
+  company: string;
+  hours_before: number;
+  hours_after: number;
+  steps_before: number;
+  steps_after: number;
+  people_before: number;
+  people_after: number;
+  verified: boolean;
+}
+
+export interface CaseStudy {
+  id: string;
+  company: string;
+  headline: string;
+  summary: string;
+  metric_highlight: string;
+  created_at: string;
+}
+
+export interface ValidationCampaign {
+  id: string;
+  name: string;
+  type: "validation_to_first_client" | "custom";
+  hypothesis: string;
+  target_icp: {
+    industry: string;
+    headcount: string;
+    workflow: string;
+    geography: string;
+  };
+  active_stage: CampaignStageId;
+  scoreboard: CampaignScoreboard;
+  sprint_milestone: SprintMilestone;
+  prospects: CampaignProspect[];
+  discovery_notes: DiscoveryNote[];
+  decision_gate: DecisionGate;
+  micro_demo: MicroDemoSpec;
+  pilot_offer: PilotOffer;
+  delivery_metrics: DeliveryMetric[];
+  case_studies: CaseStudy[];
+  created_at: string;
+  updated_at: string;
+}
+
+const STORAGE_KEY = "atlas_validation_campaign_v1";
+
+// ── Default Campaign Definition based strictly on User's Playbook ──────────
+const DEFAULT_CAMPAIGN: ValidationCampaign = {
+  id: "agency-reporting-v1",
+  name: "Agency Reporting Validation",
+  type: "validation_to_first_client",
+  hypothesis: "Find out whether small paid-media agencies (5–15 employees) have a painful recurring client reporting workflow we can solve, then get 1–2 of them to pay $300–$500 to solve it.",
+  target_icp: {
+    industry: "Small Paid-Media & Performance Marketing Agencies",
+    headcount: "5–15 employees",
+    workflow: "Recurring monthly client reporting across Meta Ads, Google Ads & Analytics",
+    geography: "US, UK & Remote",
+  },
+  active_stage: 1,
+  scoreboard: {
+    agencies_researched: { current: 3, target: 40 },
+    personalised_outreaches: { current: 1, target: 25 },
+    discovery_conversations: { current: 0, target: 8 },
+    qualified_conversations: { current: 0, target: 10 },
+    sales_calls: { current: 0, target: 4 },
+    paid_pilots: { current: 0, target: 2 },
+    revenue_usd: { current: 0, target: 600, unit: "$" },
+    case_studies: { current: 0, target: 1 },
+  },
+  sprint_milestone: {
+    target_agencies: 10,
+    target_contacted: 5,
+  },
+  prospects: [
+    {
+      id: "prospect-1",
+      company: "Aura Growth Lab",
+      website: "https://auragrowth.io",
+      founder_name: "Marcus Vance",
+      founder_role: "Managing Director",
+      founder_email: "marcus@auragrowth.io",
+      founder_linkedin: "https://linkedin.com/in/marcusvance-example",
+      team_size: "8 employees",
+      source: "Clutch",
+      status: "researched",
+      notes: "Pure-play paid social & search agency. Manages 14 client accounts.",
+      created_at: new Date(Date.now() - 3600000 * 24).toISOString(),
+    },
+    {
+      id: "prospect-2",
+      company: "Beacon Performance",
+      website: "https://beaconmedia.co",
+      founder_name: "Elena Rostova",
+      founder_role: "Founder & Lead Strategist",
+      founder_email: "elena@beaconmedia.co",
+      founder_linkedin: "https://linkedin.com/in/elenarostova-example",
+      team_size: "11 employees",
+      source: "Clutch",
+      status: "contacted",
+      notes: "Handles Meta + Google Ads for e-commerce brands.",
+      created_at: new Date(Date.now() - 3600000 * 18).toISOString(),
+      contacted_at: new Date(Date.now() - 3600000 * 4).toISOString(),
+    },
+    {
+      id: "prospect-3",
+      company: "Kite & Scale Media",
+      website: "https://kitescale.agency",
+      founder_name: "David Chen",
+      founder_role: "Founder & CEO",
+      founder_email: "david@kitescale.agency",
+      founder_linkedin: "https://linkedin.com/in/davidchen-example",
+      team_size: "6 employees",
+      source: "LinkedIn",
+      status: "researched",
+      notes: "B2B performance marketing boutique.",
+      created_at: new Date(Date.now() - 3600000 * 12).toISOString(),
+    },
+  ],
+  discovery_notes: [],
+  decision_gate: {
+    status: "pending",
+    notes: "Reviewing after 5–10 discovery conversations are logged.",
+  },
+  micro_demo: {
+    status: "not_started",
+    inputs: ["Meta Ads API / CSV", "Google Ads API / CSV"],
+    workflow_steps: [
+      "Auto-collect Meta + Google campaign performance metrics",
+      "Structure data into unified ROAS & blended acquisition table",
+      "Generate draft performance summary commentary",
+      "Human review & approval interface",
+      "Export client-ready PDF / Notion report",
+    ],
+    output_format: "Client-ready executive summary report",
+  },
+  pilot_offer: {
+    scope_description: "One reporting workflow, one report format, 1–2 data sources (Meta + Google), with human approval step.",
+    price_usd: 400,
+    turnaround_days: 8,
+    data_sources: ["Meta Ads", "Google Ads"],
+    human_approval: true,
+  },
+  delivery_metrics: [],
+  case_studies: [],
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
+// ── Store Methods ──────────────────────────────────────────────────────────
+
+export function getActiveCampaign(): ValidationCampaign {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CAMPAIGN));
+      return DEFAULT_CAMPAIGN;
+    }
+    return JSON.parse(raw);
+  } catch {
+    return DEFAULT_CAMPAIGN;
+  }
+}
+
+export function saveActiveCampaign(campaign: ValidationCampaign): void {
+  try {
+    campaign.updated_at = new Date().toISOString();
+    // Recalculate scoreboard stats reactively
+    const researchedCount = campaign.prospects.length;
+    const contactedCount = campaign.prospects.filter((p) => p.status !== "researched").length;
+    const discoveryCount = campaign.discovery_notes.length;
+    const pilotsCount = campaign.prospects.filter((p) => p.status === "pilot" || p.status === "customer").length;
+
+    campaign.scoreboard.agencies_researched.current = researchedCount;
+    campaign.scoreboard.personalised_outreaches.current = contactedCount;
+    campaign.scoreboard.discovery_conversations.current = discoveryCount;
+    campaign.scoreboard.paid_pilots.current = pilotsCount;
+    campaign.scoreboard.revenue_usd.current = pilotsCount * campaign.pilot_offer.price_usd;
+    campaign.scoreboard.case_studies.current = campaign.case_studies.length;
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(campaign));
+    window.dispatchEvent(new CustomEvent("atlas_campaign_updated", { detail: campaign }));
+  } catch (err) {
+    console.error("[CampaignValidationStore] Failed to save:", err);
+  }
+}
+
+export function setActiveCampaignStage(stageId: CampaignStageId): ValidationCampaign {
+  const c = getActiveCampaign();
+  c.active_stage = stageId;
+  saveActiveCampaign(c);
+  return c;
+}
+
+export function addProspectToCampaign(prospect: Omit<CampaignProspect, "id" | "created_at">): ValidationCampaign {
+  const c = getActiveCampaign();
+  const newProspect: CampaignProspect = {
+    ...prospect,
+    id: `prospect-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    created_at: new Date().toISOString(),
+  };
+  c.prospects.unshift(newProspect);
+  saveActiveCampaign(c);
+  return c;
+}
+
+export function updateProspectStatus(
+  prospectId: string,
+  status: CampaignProspect["status"],
+  notes?: string
+): ValidationCampaign {
+  const c = getActiveCampaign();
+  const p = c.prospects.find((x) => x.id === prospectId);
+  if (p) {
+    p.status = status;
+    if (status === "contacted" && !p.contacted_at) {
+      p.contacted_at = new Date().toISOString();
+    }
+    if (notes !== undefined) p.notes = notes;
+    saveActiveCampaign(c);
+  }
+  return c;
+}
+
+export function addDiscoveryNoteToCampaign(
+  note: Omit<DiscoveryNote, "id" | "created_at">
+): ValidationCampaign {
+  const c = getActiveCampaign();
+  const newNote: DiscoveryNote = {
+    ...note,
+    id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    created_at: new Date().toISOString(),
+  };
+  c.discovery_notes.unshift(newNote);
+
+  // If linked to a prospect, advance status
+  if (note.prospect_id) {
+    const p = c.prospects.find((x) => x.id === note.prospect_id);
+    if (p && p.status === "contacted") {
+      p.status = "discovery";
+    }
+  }
+
+  saveActiveCampaign(c);
+  return c;
+}
+
+export function setDecisionGateOutcome(
+  status: DecisionGate["status"],
+  notes: string
+): ValidationCampaign {
+  const c = getActiveCampaign();
+  c.decision_gate = {
+    status,
+    notes,
+    decided_at: new Date().toISOString(),
+  };
+  if (status === "strong_repetition") {
+    c.active_stage = 5; // Advance to Build Demo
+  }
+  saveActiveCampaign(c);
+  return c;
+}
+
+export function addDeliveryMetric(
+  metric: Omit<DeliveryMetric, "id">
+): ValidationCampaign {
+  const c = getActiveCampaign();
+  const newMetric: DeliveryMetric = {
+    ...metric,
+    id: `delivery-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  };
+  c.delivery_metrics.unshift(newMetric);
+  saveActiveCampaign(c);
+  return c;
+}
+
+export function addCaseStudy(
+  caseStudy: Omit<CaseStudy, "id" | "created_at">
+): ValidationCampaign {
+  const c = getActiveCampaign();
+  const newStudy: CaseStudy = {
+    ...caseStudy,
+    id: `case-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    created_at: new Date().toISOString(),
+  };
+  c.case_studies.unshift(newStudy);
+  saveActiveCampaign(c);
+  return c;
+}
+
+export function resetCampaignToPlaybookDefault(): ValidationCampaign {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_CAMPAIGN));
+  window.dispatchEvent(new CustomEvent("atlas_campaign_updated", { detail: DEFAULT_CAMPAIGN }));
+  return DEFAULT_CAMPAIGN;
+}

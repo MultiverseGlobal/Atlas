@@ -31,6 +31,7 @@ const HqPartnerships = React.lazy(() => import("./pages/hq/HqPartnerships"));
 const HqTeam = React.lazy(() => import("./pages/hq/HqTeam"));
 const HqReport = React.lazy(() => import("./pages/hq/HqReport"));
 const HqMediaJobs = React.lazy(() => import("./pages/hq/HqMediaJobs"));
+const HqCampaignHub = React.lazy(() => import("./pages/hq/HqCampaignHub"));
 const Privacy = React.lazy(() => import("./pages/Privacy"));
 const PublicProfile = React.lazy(() => import("./pages/PublicProfile"));
 
@@ -61,6 +62,8 @@ const App = () => (
                   <Route path="/briefing" element={<DailyBriefing />} />
                   <Route path="/objectives" element={<ObjectivesStudio />} />
                   <Route path="/outreach" element={<HqOutreach />} />
+                  <Route path="/campaigns" element={<HqCampaignHub />} />
+                  <Route path="/campaign" element={<HqCampaignHub />} />
                   <Route path="/workspace" element={<CommandFeed />} />
                   <Route path="/command" element={<CommandFeed />} />
                   <Route path="/engine" element={<CommandFeed />} />
@@ -78,6 +81,8 @@ const App = () => (
                     <Route path="partnerships" element={<HqPartnerships />} />
                     <Route path="team" element={<HqTeam />} />
                     <Route path="report" element={<HqReport />} />
+                    <Route path="campaigns" element={<HqCampaignHub />} />
+                    <Route path="campaign" element={<HqCampaignHub />} />
                     <Route path="media-jobs" element={<HqMediaJobs />} />
                     <Route path="leads" element={<Navigate to="/hq/radar" replace />} />
                     <Route path="leads/:id" element={<HqLeadDetail />} />

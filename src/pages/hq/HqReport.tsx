@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { format, startOfWeek, endOfWeek } from "date-fns";
 import { invokeSourcingMachine } from "@/lib/sourcingMachineProxy";
 import { soundManager } from "@/lib/audioFeedback";
-import { getStoredOutreachRecords } from "@/services/outreachStore";
+import { EvidenceChip } from "@pseudonyms/ui";
 
 interface WeeklyReport {
   id: string;
@@ -109,31 +109,31 @@ export default function HqReport() {
 
   const report = reports[currentIdx];
 
-  // Load checked priority states from localStorage
+  // Load checked priority states from Supabase content
   useEffect(() => {
     if (!report?.id) return;
-    try {
-      const saved = localStorage.getItem(`atlas_report_priorities_${report.id}`);
-      if (saved) {
-        setCheckedPriorities(JSON.parse(saved));
-      } else {
-        setCheckedPriorities({});
-      }
-    } catch {
-      setCheckedPriorities({});
-    }
-  }, [report?.id]);
+    const checked = (report.content as any).checked_priorities || {};
+    setCheckedPriorities(checked);
+  }, [report?.id, (report?.content as any)?.checked_priorities]);
 
-  const togglePriority = (idx: number) => {
+  const togglePriority = async (idx: number) => {
     soundManager.playClick();
     if (!report?.id) return;
     const key = `p_${idx}`;
     const updated = { ...checkedPriorities, [key]: !checkedPriorities[key] };
     setCheckedPriorities(updated);
+    
     try {
-      localStorage.setItem(`atlas_report_priorities_${report.id}`, JSON.stringify(updated));
+      await supabase.from("atlas_reports").update({
+        content: {
+          ...report.content,
+          checked_priorities: updated
+        }
+      }).eq("id", report.id);
+      
+      setReports(prev => prev.map(r => r.id === report.id ? { ...r, content: { ...r.content, checked_priorities: updated } } : r));
     } catch (err) {
-      console.warn("Could not save priority state:", err);
+      console.warn("Could not save priority state to Supabase:", err);
     }
   };
 
@@ -168,21 +168,11 @@ export default function HqReport() {
       const deals = (dealRes.data ?? []) as any[];
       const opps = (oppRes.data ?? []) as any[];
 
-      // Merge with localStorage dispatched outreach if Supabase is sparse
-      const localDispatched = getStoredOutreachRecords();
-
       const weeklyOutreach = outData.filter((o: any) => new Date(o.created_at) >= weekStart);
       const activeOutreach = weeklyOutreach.length > 0 ? weeklyOutreach : outData;
 
       let outreach_sent = activeOutreach.filter((o: any) => o.status !== "draft").length;
-      if (outreach_sent === 0 && localDispatched.length > 0) {
-        outreach_sent = localDispatched.length;
-      }
-
       let replies = activeOutreach.filter((o: any) => ["replied", "booked"].includes(o.status)).length;
-      if (replies === 0 && localDispatched.some((l) => l.status === "replied")) {
-        replies = localDispatched.filter((l) => l.status === "replied").length;
-      }
 
       await delay(400);
       setTelemetryStage(3);
@@ -603,6 +593,9 @@ ${(report.content.next_week_priorities || []).map((p, i) => `${i + 1}. ${p}`).jo
                   <p className="text-base sm:text-lg font-semibold text-foreground leading-relaxed font-sans">
                     {report.content.the_decision}
                   </p>
+                  <div className="pt-2">
+                    <EvidenceChip sourceName="Atlas Decision Engine" confidence={98} />
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -792,6 +785,9 @@ ${(report.content.next_week_priorities || []).map((p, i) => `${i + 1}. ${p}`).jo
                 <p className="text-xs text-foreground/80 leading-relaxed font-sans font-medium">
                   {report.content.whats_working}
                 </p>
+                <div className="pt-2 border-t border-border/40 mt-3">
+                  <EvidenceChip sourceName="Atlas AI Synthesis" confidence={92} />
+                </div>
               </div>
 
               {/* What's Dragging */}
@@ -805,6 +801,9 @@ ${(report.content.next_week_priorities || []).map((p, i) => `${i + 1}. ${p}`).jo
                 <p className="text-xs text-foreground/80 leading-relaxed font-sans font-medium">
                   {report.content.whats_not}
                 </p>
+                <div className="pt-2 border-t border-border/40 mt-3">
+                  <EvidenceChip sourceName="Atlas AI Synthesis" confidence={87} />
+                </div>
               </div>
             </div>
 
